@@ -1,0 +1,37 @@
+[
+  {
+    "id": "svc-system-a",
+    "name": "系統A",
+    "organizationId": "org-nics",
+    "code": "SYSTEM_A",
+    "host": "https://google.com"
+  },
+  {
+    "id": "svc-test",
+    "name": "測試",
+    "organizationId": "org-moda",
+    "code": "TEST",
+    "host": "https://moda.gov.tw"
+  },
+  {
+    "id": "svc-test2",
+    "name": "測試2",
+    "organizationId": "org-acs",
+    "code": "TEST2",
+    "host": "https://acs.gov.tw"
+  },
+  {
+    "id": "svc-demo",
+    "name": "demo",
+    "organizationId": "org-nics",
+    "code": "DEMO",
+    "host": "https://demo.gov.tw"
+  },
+  {
+    "id": "svc-askme",
+    "name": "askme",
+    "organizationId": "org-nics",
+    "code": "ASKME",
+    "host": "https://google.com"
+  }
+]

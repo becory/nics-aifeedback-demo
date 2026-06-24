@@ -1,6 +1,12 @@
 import type { AppData, User } from '../types'
 import { hashPassword } from './crypto'
 import { createDefaultFeedbacks, mergeDefaultFeedbacks } from './defaultFeedbacks'
+import {
+  createDefaultOrganizations,
+  createDefaultServices,
+  getDefaultAdminOrganizationIds,
+  getDefaultFeedbackFallbackOrgId,
+} from './defaultSeedData'
 import { syncFeedbackOrganizations } from './entityLookups'
 import { DEFAULT_RATING_SCORES, normalizeRatingScores } from './ratingScores'
 import { createTotpSecret } from './totp'
@@ -10,12 +16,34 @@ const DATA_KEY = 'aifeedback_data'
 export const DEFAULT_ADMIN_ID = 'admin-user'
 export const DEFAULT_ADMIN_TOTP_SECRET = 'VXSSSCOGZGVZST3CUPFL62W263ZD6RUW'
 
+function seedFeedbacks(data: AppData): boolean {
+  const fallbackOrgId = getDefaultFeedbackFallbackOrgId(data.organizations)
+  if (!data.services.length || !fallbackOrgId) return false
+
+  const before = data.feedbacks.length
+  if (before === 0) {
+    data.feedbacks = createDefaultFeedbacks(data.services, fallbackOrgId)
+  } else {
+    data.feedbacks = mergeDefaultFeedbacks(data.services, fallbackOrgId, data.feedbacks)
+  }
+
+  const synced = syncFeedbackOrganizations(data.feedbacks, data.services)
+  const orgChanged = synced.some((fb, i) => fb.organizationId !== data.feedbacks[i]?.organizationId)
+  if (orgChanged) data.feedbacks = synced
+
+  return data.feedbacks.length !== before || orgChanged
+}
+
 async function createDefaultData(): Promise<AppData> {
+  const organizations = createDefaultOrganizations()
+  const services = createDefaultServices()
+  const fallbackOrgId = getDefaultFeedbackFallbackOrgId(organizations)
+
   return {
-    organizations: [],
-    services: [],
+    organizations,
+    services,
     offlineKeys: [],
-    feedbacks: [],
+    feedbacks: fallbackOrgId ? createDefaultFeedbacks(services, fallbackOrgId) : [],
     ratingScores: DEFAULT_RATING_SCORES,
     users: [
       {
@@ -25,7 +53,7 @@ async function createDefaultData(): Promise<AppData> {
         passwordHash: await hashPassword('admin'),
         totpSecret: DEFAULT_ADMIN_TOTP_SECRET,
         totpEnabled: false,
-        organizationIds: [],
+        organizationIds: getDefaultAdminOrganizationIds(),
         isAdmin: true,
       },
     ],
@@ -76,27 +104,20 @@ export async function initStorage(): Promise<AppData> {
       migrated = true
     }
   }
-  const testService = data.services.find((s) => s.code.toLowerCase() === 'test')
-  if (testService) {
-    const before = data.feedbacks.length
-    if (before === 0) {
-      data.feedbacks = createDefaultFeedbacks(data.services, testService.organizationId)
-    } else {
-      data.feedbacks = mergeDefaultFeedbacks(data.services, testService.organizationId, data.feedbacks)
-    }
-    const synced = syncFeedbackOrganizations(data.feedbacks, data.services)
-    if (synced.some((fb, i) => fb.organizationId !== data.feedbacks[i]?.organizationId)) {
-      data.feedbacks = synced
-      migrated = true
-    }
-    if (data.feedbacks.length !== before) migrated = true
-  } else if (data.feedbacks.length > 0) {
-    const synced = syncFeedbackOrganizations(data.feedbacks, data.services)
-    if (synced.some((fb, i) => fb.organizationId !== data.feedbacks[i]?.organizationId)) {
-      data.feedbacks = synced
-      migrated = true
-    }
+  if (data.organizations.length === 0) {
+    data.organizations = createDefaultOrganizations()
+    migrated = true
   }
+  if (data.services.length === 0) {
+    data.services = createDefaultServices()
+    migrated = true
+  }
+  const adminUser = data.users.find((u) => u.id === DEFAULT_ADMIN_ID)
+  if (adminUser && adminUser.organizationIds.length === 0 && data.organizations.length > 0) {
+    adminUser.organizationIds = getDefaultAdminOrganizationIds()
+    migrated = true
+  }
+  if (seedFeedbacks(data)) migrated = true
   if (migrated) saveData(data)
   return data
 }
