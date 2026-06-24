@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Feedback } from '../types'
 import { useAuth } from '../lib/auth'
 import {
   applyDimensionFilters,
@@ -20,16 +21,17 @@ import {
   countByOrganizationViaService,
   countByServiceId,
 } from '../lib/entityLookups'
-import { getData } from '../lib/storage'
+import { getData, saveData } from '../lib/storage'
 import { getScoreMap, getRatingLabelMap } from '../lib/ratingScores'
 import { ActivityLogTable } from '../components/ActivityLogTable'
+import { FeedbackImportModal } from '../components/FeedbackImportModal'
 import {
   FilterChip,
   TopStatsPanel,
   TrafficChartSection,
   type TopStatsItem,
 } from '../components/feedbackCharts'
-import { EmptyState, PageHeader } from '../components/ui'
+import { EmptyState, PageHeader, Button } from '../components/ui'
 
 const RATING_KEYS = ['good', 'normal', 'bad'] as const
 
@@ -43,11 +45,14 @@ function toStatsItems(rows: { label: string; count: number }[]): TopStatsItem[] 
 
 export function FeedbackOverviewPage() {
   const { user } = useAuth()
-  const data = getData()
+  const [dataVersion, setDataVersion] = useState(0)
+  const data = useMemo(() => getData(), [dataVersion])
   const [timePreset, setTimePreset] = useState<TimePreset>(DEFAULT_TIME_PRESET)
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [dimensionFilters, setDimensionFilters] = useState<DimensionFilter[]>([])
+  const [importOpen, setImportOpen] = useState(false)
+  const [importNotice, setImportNotice] = useState('')
 
   const allFeedbacks = useMemo(
     () => getUserFeedbacks(data.feedbacks, user?.organizationIds ?? []),
@@ -165,11 +170,37 @@ export function FeedbackOverviewPage() {
 
   const hasFilters = dimensionFilters.length > 0 || timePreset !== DEFAULT_TIME_PRESET
 
+  const handleImported = (feedbacks: Feedback[], message: string) => {
+    const store = getData()
+    store.feedbacks = feedbacks
+    saveData(store)
+    setDataVersion((v) => v + 1)
+    setImportNotice(message)
+  }
+
   return (
     <>
       <PageHeader
         title="回饋資料總覽"
         description="檢視回饋趨勢、平均分數、來源分布與活動記錄"
+        action={
+          <Button variant="secondary" onClick={() => setImportOpen(true)}>
+            手動匯入資料
+          </Button>
+        }
+      />
+
+      {importNotice && (
+        <div className="cf-alert cf-alert--success mb-4">{importNotice}</div>
+      )}
+
+      <FeedbackImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        services={data.services}
+        organizations={data.organizations}
+        existing={data.feedbacks}
+        onImported={handleImported}
       />
 
       {!user?.organizationIds.length ? (
