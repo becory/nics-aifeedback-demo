@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { OrgIcon, ServiceIcon, UserIcon, KeyIcon, ListIcon, OverviewIcon, ScoreIcon } from './NavIcons'
@@ -11,7 +12,7 @@ const adminNavItems = [
 ]
 
 const userNavItems = [
-  { to: '/feedback-overview', label: '總覽', Icon: OverviewIcon },
+  { to: '/feedback-overview', label: '回饋資料總覽', Icon: OverviewIcon },
   { to: '/my-services', label: '服務清單', Icon: ListIcon },
 ]
 
@@ -23,22 +24,16 @@ function NavSection({
   items: typeof adminNavItems
 }) {
   return (
-    <div>
-      <p className="mb-2 px-3 text-xs font-semibold text-slate-500">{title}</p>
-      <div className="space-y-1">
+    <div className="cf-nav-section">
+      <p className="cf-nav-section__title">{title}</p>
+      <div className="space-y-0.5">
         {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-indigo-50 text-indigo-700'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`
-            }
+            className={({ isActive }) => `cf-nav-link${isActive ? ' cf-nav-link--active' : ''}`}
           >
-            <item.Icon />
+            <item.Icon className="h-[18px] w-[18px] shrink-0" />
             {item.label}
           </NavLink>
         ))}
@@ -47,65 +42,112 @@ function NavSection({
   )
 }
 
-export function Layout() {
+function AccountMenu() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [open])
 
   const handleLogout = () => {
+    setOpen(false)
     logout()
     navigate('/login')
   }
 
+  const initials = user?.nameZh?.slice(0, 1) ?? 'U'
+
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <aside className="flex w-64 flex-col border-r border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-6 py-5">
-          <h1 className="text-lg font-bold text-slate-900">AI 回饋系統</h1>
-          <p className="mt-1 text-xs text-slate-500">管理後台</p>
-        </div>
+    <div className="cf-topbar__account" ref={menuRef}>
+      <button
+        type="button"
+        className="cf-account-btn"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="cf-account-avatar" aria-hidden>
+          {initials}
+        </span>
+        <span className="cf-account-name">{user?.nameZh}</span>
+      </button>
 
-        <nav className="flex-1 space-y-6 p-4">
-          <NavSection title="使用者功能" items={userNavItems} />
-          {user?.isAdmin && <NavSection title="管理員功能" items={adminNavItems} />}
-        </nav>
-
-        <div className="border-t border-slate-200 p-4">
-          <div className="mb-3 rounded-lg bg-slate-50 px-3 py-2">
-            <p className="text-sm font-medium text-slate-900">{user?.nameZh}</p>
-            <p className="text-xs text-slate-500">{user?.email}</p>
-            {user?.isAdmin && (
-              <span className="mt-1 inline-block rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-700">
-                管理員
-              </span>
-            )}
+      {open && (
+        <div className="cf-account-menu" role="menu">
+          <div className="cf-account-menu__header">
+            <p className="cf-account-menu__name">{user?.nameZh}</p>
+            <p className="cf-account-menu__email">{user?.email}</p>
+            {user?.isAdmin && <span className="cf-account-menu__badge">管理員</span>}
           </div>
           <NavLink
             to="/change-password"
-            className={({ isActive }) =>
-              `mb-2 block w-full rounded-lg border px-3 py-2 text-center text-sm font-medium transition-colors ${
-                isActive
-                  ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`
-            }
+            role="menuitem"
+            className="cf-account-menu__item"
+            onClick={() => setOpen(false)}
           >
             修改密碼
           </NavLink>
           <button
             type="button"
+            role="menuitem"
+            className="cf-account-menu__item cf-account-menu__item--danger"
             onClick={handleLogout}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
           >
             登出
           </button>
         </div>
+      )}
+    </div>
+  )
+}
+
+export function Layout() {
+  const { user } = useAuth()
+
+  return (
+    <div className="cf-shell">
+      <aside className="cf-sidebar">
+        <div className="cf-sidebar__brand">
+          <h1 className="cf-sidebar__brand-title">AI 回饋系統</h1>
+        </div>
+
+        <nav className="cf-sidebar__nav">
+          <NavSection title="使用者功能" items={userNavItems} />
+          {user?.isAdmin && <NavSection title="管理員功能" items={adminNavItems} />}
+        </nav>
       </aside>
 
-      <main className="flex-1 overflow-auto bg-[#f2f2f2]">
-        <div className="mx-auto max-w-[1400px] px-5 py-5">
-          <Outlet />
-        </div>
-      </main>
+      <div className="cf-main">
+        <header className="cf-topbar">
+          <AccountMenu />
+        </header>
+
+        <main className="cf-content">
+          <div className="cf-content__inner">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

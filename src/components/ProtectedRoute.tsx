@@ -8,8 +8,8 @@ export function ProtectedRoute() {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
+        <div className="cf-spinner" />
       </div>
     )
   }
@@ -28,8 +28,8 @@ export function AdminRoute() {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
+        <div className="cf-spinner" />
       </div>
     )
   }
@@ -56,8 +56,8 @@ export function GuestRoute() {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
+        <div className="cf-spinner" />
       </div>
     )
   }
@@ -76,8 +76,8 @@ export function TwoFactorRoute({ mode }: { mode: 'setup' | 'verify' }) {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
+        <div className="cf-spinner" />
       </div>
     )
   }

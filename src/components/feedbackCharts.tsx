@@ -1,4 +1,8 @@
-import { CHART_COLORS, formatCompactCount, STATS_FIELD_LABELS, TIME_PRESET_LABELS, type StatsFilterField, type DimensionFilter, type TimePreset } from '../lib/feedbackStats'
+import { useState } from 'react'
+import { CHART_COLORS, dateKeyToMs, formatCompactCount, STATS_FIELD_LABELS, TIME_PRESET_LABELS, type StatsFilterField, type DimensionFilter, type TimePreset } from '../lib/feedbackStats'
+import { Modal } from './Modal'
+
+const STATS_PREVIEW_LIMIT = 5
 
 export function AnalyticsPanel({
   title,
@@ -73,7 +77,7 @@ export function TrafficChartSection({
   avgScore,
   total,
 }: {
-  points: { label: string; count: number }[]
+  points: { date: string; label: string; count: number }[]
   timePreset: TimePreset
   onTimePresetChange: (preset: TimePreset) => void
   avgScore: number
@@ -146,22 +150,86 @@ export interface TopStatsItem {
   count: number
 }
 
+function StatsItemList({
+  items,
+  field,
+  max,
+  onInclude,
+  onExclude,
+  className = 'flex-1 py-0.5',
+}: {
+  items: TopStatsItem[]
+  field: StatsFilterField
+  max: number
+  onInclude: (field: StatsFilterField, value: string, label: string) => void
+  onExclude: (field: StatsFilterField, value: string, label: string) => void
+  className?: string
+}) {
+  return (
+    <ul className={className}>
+      {items.map((item) => {
+        const fillPct = (item.count / max) * 100
+        return (
+          <li key={`${field}-${item.value}`} className="cf-stat-card__row group">
+            <span className="cf-stat-card__label" title={item.label}>
+              {item.label}
+            </span>
+            <div className="cf-stat-card__aside">
+              <div className="cf-stat-card__aside-stats">
+                <span className="cf-stat-card__count">{formatCompactCount(item.count)}</span>
+                <div className="cf-stat-card__bar-track">
+                  <div className="cf-stat-card__bar-fill" style={{ width: `${fillPct}%` }} />
+                </div>
+              </div>
+              <div className="cf-stat-card__aside-actions">
+                <button
+                  type="button"
+                  title="僅顯示此項目"
+                  aria-label={`篩選 ${item.label}`}
+                  onClick={() => onInclude(field, item.value, item.label)}
+                  className="cf-action-btn"
+                >
+                  <FilterForIcon className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="排除此項目"
+                  aria-label={`排除 ${item.label}`}
+                  onClick={() => onExclude(field, item.value, item.label)}
+                  className="cf-action-btn cf-action-btn--danger"
+                >
+                  <FilterOutIcon className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export function TopStatsPanel({
   title,
   field,
-  items,
+  allItems,
   onInclude,
   onExclude,
   emptyMessage = '尚無資料',
+  previewLimit = STATS_PREVIEW_LIMIT,
 }: {
   title: string
   field: StatsFilterField
-  items: TopStatsItem[]
+  allItems: TopStatsItem[]
   onInclude: (field: StatsFilterField, value: string, label: string) => void
   onExclude: (field: StatsFilterField, value: string, label: string) => void
   emptyMessage?: string
+  previewLimit?: number
 }) {
-  const max = Math.max(...items.map((i) => i.count), 1)
+  const [expanded, setExpanded] = useState(false)
+  const previewItems = allItems.slice(0, previewLimit)
+  const previewMax = Math.max(...previewItems.map((i) => i.count), 1)
+  const allMax = Math.max(...allItems.map((i) => i.count), 1)
 
   return (
     <div className="cf-stat-card">
@@ -169,52 +237,49 @@ export function TopStatsPanel({
         <div className="cf-stat-card__title">
           <span className="truncate">{title}</span>
         </div>
-        <button type="button" className="cf-icon-btn" aria-label={`展開 ${title}`}>
-          <ExpandIcon className="h-3.5 w-3.5" />
-        </button>
+        {allItems.length > 0 && (
+          <button
+            type="button"
+            className="cf-icon-btn"
+            aria-label={`展開 ${title} 完整清單`}
+            title="查看完整清單"
+            onClick={() => setExpanded(true)}
+          >
+            <ExpandIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
-      {items.length === 0 ? (
+      {allItems.length === 0 ? (
         <p className="px-3 py-8 text-center text-xs text-[#8c8c8c]">{emptyMessage}</p>
       ) : (
-        <ul className="flex-1 py-0.5">
-          {items.map((item) => {
-            const fillPct = (item.count / max) * 100
-            return (
-              <li key={`${field}-${item.value}`} className="cf-stat-card__row group">
-                <span className="cf-stat-card__label" title={item.label}>
-                  {item.label}
-                </span>
-                <div className="flex shrink-0 items-center gap-2 group-hover:hidden">
-                  <span className="cf-stat-card__count">{formatCompactCount(item.count)}</span>
-                  <div className="cf-stat-card__bar-track">
-                    <div className="cf-stat-card__bar-fill" style={{ width: `${fillPct}%` }} />
-                  </div>
-                </div>
-                <div className="hidden shrink-0 items-center gap-1 group-hover:flex">
-                  <button
-                    type="button"
-                    title="僅顯示此項目"
-                    aria-label={`篩選 ${item.label}`}
-                    onClick={() => onInclude(field, item.value, item.label)}
-                    className="cf-action-btn"
-                  >
-                    <FilterForIcon className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    title="排除此項目"
-                    aria-label={`排除 ${item.label}`}
-                    onClick={() => onExclude(field, item.value, item.label)}
-                    className="cf-action-btn cf-action-btn--danger"
-                  >
-                    <FilterOutIcon className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+        <StatsItemList
+          items={previewItems}
+          field={field}
+          max={previewMax}
+          onInclude={onInclude}
+          onExclude={onExclude}
+        />
       )}
+
+      <Modal open={expanded} title={title} onClose={() => setExpanded(false)} wide>
+        <p className="mb-4 text-sm text-slate-500">共 {allItems.length} 項</p>
+        <div className="cf-stat-card cf-stat-card--modal">
+          <StatsItemList
+            items={allItems}
+            field={field}
+            max={allMax}
+            onInclude={(f, value, label) => {
+              onInclude(f, value, label)
+              setExpanded(false)
+            }}
+            onExclude={(f, value, label) => {
+              onExclude(f, value, label)
+              setExpanded(false)
+            }}
+            className="py-0.5"
+          />
+        </div>
+      </Modal>
     </div>
   )
 }
@@ -253,30 +318,52 @@ export function ChartLegend({
   )
 }
 
-export function TrafficChart({ points }: { points: { label: string; count: number }[] }) {
+export function TrafficChart({
+  points,
+}: {
+  points: { date: string; label: string; count: number }[]
+}) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const maxCount = Math.max(...points.map((p) => p.count), 1)
   const chartHeight = 280
   const chartWidth = 1000
-  const padding = { top: 12, right: 20, bottom: 44, left: 44 }
+  const padding = { top: 12, right: 20, bottom: 48, left: 44 }
   const innerW = chartWidth - padding.left - padding.right
   const innerH = chartHeight - padding.top - padding.bottom
-  const step = points.length > 1 ? innerW / (points.length - 1) : innerW
   const color = CHART_COLORS.primary
 
-  const coords = points.map((p, i) => {
-    const x = padding.left + (points.length > 1 ? i * step : innerW / 2)
+  const minMs = points.length > 0 ? dateKeyToMs(points[0].date) : 0
+  const maxMs = points.length > 0 ? dateKeyToMs(points[points.length - 1].date) : 0
+  const timeSpan = Math.max(maxMs - minMs, 1)
+
+  const coords = points.map((p) => {
+    const ms = dateKeyToMs(p.date)
+    const x = padding.left + ((ms - minMs) / timeSpan) * innerW
     const y = padding.top + innerH - (p.count / maxCount) * innerH
     return { x, y, ...p }
   })
 
   const linePath = coords.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-  const labelEvery = points.length <= 10 ? 1 : Math.ceil(points.length / 10)
+
+  const tickIndices = (() => {
+    if (points.length <= 1) return points.length === 1 ? [0] : []
+    const maxTicks = 8
+    if (points.length <= maxTicks) return points.map((_, i) => i)
+    const indices = new Set<number>([0, points.length - 1])
+    const step = (points.length - 1) / (maxTicks - 1)
+    for (let i = 1; i < maxTicks - 1; i++) {
+      indices.add(Math.round(i * step))
+    }
+    return [...indices].sort((a, b) => a - b)
+  })()
 
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => ({
     ratio,
     value: Math.round(maxCount * ratio * 10) / 10,
     y: padding.top + innerH * (1 - ratio),
   }))
+
+  const hovered = hoveredIndex != null ? coords[hoveredIndex] : null
 
   if (points.length === 0) {
     return (
@@ -287,13 +374,14 @@ export function TrafficChart({ points }: { points: { label: string; count: numbe
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="cf-traffic-chart overflow-x-auto">
       <svg
         viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         className="w-full min-w-[640px]"
         role="img"
         aria-label="回饋數量趨勢圖"
         preserveAspectRatio="xMidYMid meet"
+        onMouseLeave={() => setHoveredIndex(null)}
       >
         {yTicks.map((tick) => (
           <g key={tick.ratio}>
@@ -326,23 +414,102 @@ export function TrafficChart({ points }: { points: { label: string; count: numbe
             strokeLinejoin="round"
           />
         )}
-        {coords.map((p, i) => (
-          <g key={`${p.label}-${i}`}>
-            <circle cx={p.x} cy={p.y} r={3} fill={color} stroke="#fff" strokeWidth={1.5} />
-            {i % labelEvery === 0 || i === points.length - 1 ? (
-              <text
-                x={p.x}
-                y={chartHeight - 16}
-                textAnchor="middle"
-                className="fill-[#595959] text-[11px]"
-                style={{ fontFamily: 'inherit' }}
-              >
-                {p.label}
-              </text>
-            ) : null}
-            <title>{`${p.label}：${p.count} 筆`}</title>
+        {hovered && (
+          <line
+            x1={hovered.x}
+            y1={padding.top}
+            x2={hovered.x}
+            y2={padding.top + innerH}
+            stroke="#d9d9d9"
+            strokeWidth={1}
+            strokeDasharray="4 3"
+            pointerEvents="none"
+          />
+        )}
+        {coords.map((p, i) => {
+          const active = hoveredIndex === i
+          const showDot = p.count > 0 || active
+          return (
+            <g key={`${p.date}-${i}`}>
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={10}
+                fill="transparent"
+                className="cursor-pointer"
+                onMouseEnter={() => setHoveredIndex(i)}
+              />
+              {showDot && (
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={active ? 5 : 3}
+                  fill={color}
+                  stroke="#fff"
+                  strokeWidth={active ? 2 : 1.5}
+                  pointerEvents="none"
+                />
+              )}
+            </g>
+          )
+        })}
+        {tickIndices.map((i) => {
+          const p = coords[i]
+          if (!p) return null
+          return (
+            <text
+              key={`tick-${p.date}`}
+              x={p.x}
+              y={chartHeight - 14}
+              textAnchor="middle"
+              className="fill-[#595959] text-[11px]"
+              style={{ fontFamily: 'inherit' }}
+            >
+              {p.label}
+            </text>
+          )
+        })}
+        {hovered && (
+          <g pointerEvents="none">
+            {(() => {
+              const tooltipW = 108
+              const tooltipH = 44
+              const tooltipX = Math.min(Math.max(hovered.x - tooltipW / 2, padding.left), chartWidth - padding.right - tooltipW)
+              const tooltipY = Math.max(hovered.y - tooltipH - 14, padding.top)
+              return (
+                <>
+                  <rect
+                    x={tooltipX}
+                    y={tooltipY}
+                    width={tooltipW}
+                    height={tooltipH}
+                    rx={4}
+                    fill="#1d1d1d"
+                    opacity={0.92}
+                  />
+                  <text
+                    x={tooltipX + tooltipW / 2}
+                    y={tooltipY + 18}
+                    textAnchor="middle"
+                    className="fill-white text-[11px] font-medium"
+                    style={{ fontFamily: 'inherit' }}
+                  >
+                    {hovered.label}
+                  </text>
+                  <text
+                    x={tooltipX + tooltipW / 2}
+                    y={tooltipY + 34}
+                    textAnchor="middle"
+                    className="fill-[#ebebeb] text-[11px]"
+                    style={{ fontFamily: 'inherit' }}
+                  >
+                    {hovered.count} 筆
+                  </text>
+                </>
+              )
+            })()}
           </g>
-        ))}
+        )}
       </svg>
     </div>
   )

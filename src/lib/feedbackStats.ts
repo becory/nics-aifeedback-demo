@@ -45,20 +45,60 @@ export interface DailyTrafficPoint {
   count: number
 }
 
-export function groupFeedbacksByDay(feedbacks: Feedback[]): DailyTrafficPoint[] {
-  const map = new Map<string, number>()
+function toDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function addDaysToDateKey(dateKey: string, days: number): string {
+  const [y, m, d] = dateKey.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  dt.setDate(dt.getDate() + days)
+  return toDateKey(dt)
+}
+
+export function dateKeyToMs(dateKey: string): number {
+  const [y, m, d] = dateKey.split('-').map(Number)
+  return new Date(y, m - 1, d).getTime()
+}
+
+export function groupFeedbacksByDay(
+  feedbacks: Feedback[],
+  startTime?: string,
+  endTime?: string,
+): DailyTrafficPoint[] {
+  const counts = new Map<string, number>()
   for (const f of feedbacks) {
-    const d = new Date(f.createdAt)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    map.set(key, (map.get(key) ?? 0) + 1)
+    const key = toDateKey(new Date(f.createdAt))
+    counts.set(key, (counts.get(key) ?? 0) + 1)
   }
-  return [...map.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, count]) => ({
-      date,
-      label: formatDayLabel(date),
-      count,
-    }))
+
+  let startKey: string
+  let endKey: string
+
+  if (startTime && endTime) {
+    startKey = toDateKey(new Date(startTime))
+    endKey = toDateKey(new Date(endTime))
+  } else if (counts.size > 0) {
+    const keys = [...counts.keys()].sort()
+    startKey = keys[0]
+    endKey = keys[keys.length - 1]
+  } else {
+    return []
+  }
+
+  if (startKey > endKey) return []
+
+  const points: DailyTrafficPoint[] = []
+  let cur = startKey
+  while (cur <= endKey) {
+    points.push({
+      date: cur,
+      label: formatDayLabel(cur),
+      count: counts.get(cur) ?? 0,
+    })
+    cur = addDaysToDateKey(cur, 1)
+  }
+  return points
 }
 
 export function getAverageScore(
@@ -153,22 +193,22 @@ export function getDeviceRatingStacks(feedbacks: Feedback[]): StackedBarItem[] {
 export function countByField(
   feedbacks: Feedback[],
   field: 'ipAsn' | 'ipAddress' | 'ipCountry' | 'device' | 'serviceId' | 'originHost' | 'userAgent',
-  limit = 8,
+  limit?: number,
 ): { label: string; count: number }[] {
   const map = new Map<string, number>()
   for (const f of feedbacks) {
     const value = f[field] || '—'
     map.set(value, (map.get(value) ?? 0) + 1)
   }
-  return [...map.entries()]
+  const sorted = [...map.entries()]
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, limit)
+  return limit != null ? sorted.slice(0, limit) : sorted
 }
 
 function formatDayLabel(date: string): string {
-  const [, m, d] = date.split('-')
-  return `${parseInt(m, 10)}/${parseInt(d, 10)}`
+  const [y, m, d] = date.split('-')
+  return `${y}/${parseInt(m, 10)}/${parseInt(d, 10)}`
 }
 
 export function getFeedbackTimeRange(feedbacks: Feedback[]): { min: string; max: string } {

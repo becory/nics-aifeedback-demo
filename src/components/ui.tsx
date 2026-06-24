@@ -10,8 +10,8 @@ export function PageHeader({ title, description, action }: PageHeaderProps) {
   return (
     <div className="mb-6 flex items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-        {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        <h1 className="cf-page-header__title">{title}</h1>
+        {description && <p className="cf-page-header__desc">{description}</p>}
       </div>
       {action}
     </div>
@@ -24,8 +24,8 @@ interface EmptyStateProps {
 
 export function EmptyState({ message }: EmptyStateProps) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center">
-      <p className="text-sm text-slate-500">{message}</p>
+    <div className="cf-empty">
+      <p>{message}</p>
     </div>
   )
 }
@@ -35,14 +35,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function Button({ variant = 'primary', className = '', children, ...props }: ButtonProps) {
-  const base = 'inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50'
-  const variants = {
-    primary: 'bg-indigo-600 text-white hover:bg-indigo-700',
-    secondary: 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
-    danger: 'bg-red-600 text-white hover:bg-red-700',
-  }
+  const variantClass =
+    variant === 'secondary' ? 'cf-btn--secondary' : variant === 'danger' ? 'cf-btn--danger' : 'cf-btn--primary'
   return (
-    <button type="button" className={`${base} ${variants[variant]} ${className}`} {...props}>
+    <button type="button" className={`cf-btn ${variantClass} ${className}`} {...props}>
       {children}
     </button>
   )
@@ -56,18 +52,16 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export function Input({ label, error, id, className = '', ...props }: InputProps) {
   const inputId = id ?? label
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={inputId} className="block text-sm font-medium text-slate-700">
+    <div className="cf-field">
+      <label htmlFor={inputId} className="cf-label">
         {label}
       </label>
       <input
         id={inputId}
-        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 ${
-          error ? 'border-red-300' : 'border-slate-200'
-        } ${className}`}
+        className={`cf-input ${error ? 'cf-input--error' : ''} ${className}`}
         {...props}
       />
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-[#b42318]">{error}</p>}
     </div>
   )
 }
@@ -78,18 +72,16 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   options: { value: string; label: string }[]
 }
 
-export function Select({ label, error, options, id, ...props }: SelectProps) {
+export function Select({ label, error, options, id, className = '', ...props }: SelectProps) {
   const selectId = id ?? label
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={selectId} className="block text-sm font-medium text-slate-700">
+    <div className="cf-field">
+      <label htmlFor={selectId} className="cf-label">
         {label}
       </label>
       <select
         id={selectId}
-        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 ${
-          error ? 'border-red-300' : 'border-slate-200'
-        }`}
+        className={`cf-select-native ${error ? 'cf-input--error' : ''} ${className}`}
         {...props}
       >
         {options.map((opt) => (
@@ -98,7 +90,7 @@ export function Select({ label, error, options, id, ...props }: SelectProps) {
           </option>
         ))}
       </select>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-[#b42318]">{error}</p>}
     </div>
   )
 }
@@ -120,19 +112,19 @@ export function CheckboxGroup({ label, options, values, onChange }: CheckboxGrou
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-slate-700">{label}</p>
-      <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3">
+    <div className="cf-field">
+      <p className="cf-label">{label}</p>
+      <div className="max-h-40 space-y-2 overflow-y-auto rounded border border-[#d9d9d9] p-3">
         {options.length === 0 ? (
-          <p className="text-xs text-slate-400">尚無可選組織</p>
+          <p className="text-xs text-[#8c8c8c]">尚無可選組織</p>
         ) : (
           options.map((opt) => (
-            <label key={opt.value} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <label key={opt.value} className="flex cursor-pointer items-center gap-2 text-sm text-[#1d1d1d]">
               <input
                 type="checkbox"
                 checked={values.includes(opt.value)}
                 onChange={() => toggle(opt.value)}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                className="h-4 w-4 rounded border-[#d9d9d9] text-[#0055dc] focus:ring-[#0055dc]"
               />
               {opt.label}
             </label>

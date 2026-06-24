@@ -130,9 +130,9 @@ export function ServicesPage() {
       ) : items.length === 0 ? (
         <EmptyState message="尚無服務資料，點擊「新增服務」開始建立" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50">
+        <div className="cf-card">
+          <table className="cf-table">
+            <thead>
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-600">服務名稱</th>
                 <th className="px-4 py-3 font-medium text-slate-600">所屬組織</th>
@@ -141,9 +141,9 @@ export function ServicesPage() {
                 <th className="px-4 py-3 font-medium text-slate-600 text-right">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {items.map((svc) => (
-                <tr key={svc.id} className="hover:bg-slate-50">
+                <tr key={svc.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{svc.name}</td>
                   <td className="px-4 py-3 text-slate-600">{getOrgName(svc.organizationId)}</td>
                   <td className="px-4 py-3 font-mono text-slate-600">{svc.code}</td>
@@ -152,7 +152,7 @@ export function ServicesPage() {
                     <button
                       type="button"
                       onClick={() => openEdit(svc)}
-                      className="mr-2 text-indigo-600 hover:text-indigo-800"
+                      className="cf-link mr-3"
                     >
                       編輯
                     </button>
@@ -178,7 +178,7 @@ export function ServicesPage() {
       >
         <div className="space-y-4">
           {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+            <div className="cf-alert cf-alert--error">{error}</div>
           )}
           <Input label="服務名稱" value={name} onChange={(e) => setName(e.target.value)} />
           <Select

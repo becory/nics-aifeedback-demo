@@ -61,12 +61,12 @@ export function ChangePasswordPage() {
         description="變更您的登入密碼"
       />
 
-      <div className="max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="cf-form-card max-w-md">
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+          <div className="mb-4 cf-alert cf-alert--error">{error}</div>
         )}
         {success && (
-          <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{success}</div>
+          <div className="mb-4 cf-alert cf-alert--success">{success}</div>
         )}
 
         <div className="space-y-4">

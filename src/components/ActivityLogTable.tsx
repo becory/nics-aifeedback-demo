@@ -6,6 +6,7 @@ import {
   formatServiceLabel,
   resolveOrganizationIdFromFeedback,
 } from '../lib/entityLookups'
+import { formatDisplayTime } from '../lib/datetime'
 
 const PAGE_SIZE = 25
 
@@ -42,19 +43,6 @@ const ratingBadgeClass: Record<string, string> = {
   bad: 'cf-badge cf-badge--bad',
 }
 
-function formatLogTime(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-    timeZoneName: 'shortOffset',
-  })
-}
-
 function loadVisibleColumns(): Set<LogColumnKey> {
   try {
     const raw = localStorage.getItem(COLUMN_STORAGE_KEY)
@@ -75,7 +63,7 @@ function cellValue(
 ): string {
   switch (key) {
     case 'createdAt':
-      return formatLogTime(fb.createdAt)
+      return formatDisplayTime(fb.createdAt)
     case 'feedbackRating':
       return ratingLabels[fb.feedbackRating] ?? fb.feedbackRating
     case 'serviceId':
@@ -249,7 +237,7 @@ export function ActivityLogTable({
                                 {key === 'feedbackRating'
                                   ? ratingLabels[fb.feedbackRating]
                                   : key === 'createdAt'
-                                    ? formatLogTime(fb.createdAt)
+                                    ? formatDisplayTime(fb.createdAt)
                                     : key === 'serviceId'
                                       ? formatServiceLabel(fb.serviceId, services)
                                       : String(fb[key] ?? '—')}

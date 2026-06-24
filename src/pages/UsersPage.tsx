@@ -182,9 +182,9 @@ export function UsersPage() {
       {items.length === 0 ? (
         <EmptyState message="尚無使用者資料" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50">
+        <div className="cf-card">
+          <table className="cf-table">
+            <thead>
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-600">中文名稱</th>
                 <th className="px-4 py-3 font-medium text-slate-600">信箱</th>
@@ -194,9 +194,9 @@ export function UsersPage() {
                 <th className="px-4 py-3 font-medium text-slate-600 text-right">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {items.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50">
+                <tr key={user.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{user.nameZh}</td>
                   <td className="px-4 py-3 text-slate-600">{user.email}</td>
                   <td className="px-4 py-3 text-slate-600">{getOrgNames(user.organizationIds)}</td>
@@ -213,7 +213,7 @@ export function UsersPage() {
                   </td>
                   <td className="px-4 py-3">
                     {user.isAdmin ? (
-                      <span className="inline-flex rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                      <span className="cf-badge cf-badge--blue">
                         是
                       </span>
                     ) : (
@@ -224,14 +224,14 @@ export function UsersPage() {
                     <button
                       type="button"
                       onClick={() => openEdit(user)}
-                      className="mr-2 text-indigo-600 hover:text-indigo-800"
+                      className="cf-link mr-3"
                     >
                       編輯
                     </button>
                     <button
                       type="button"
                       onClick={() => openChangePassword(user)}
-                      className="mr-2 text-indigo-600 hover:text-indigo-800"
+                      className="cf-link mr-3"
                     >
                       修改密碼
                     </button>
@@ -267,7 +267,7 @@ export function UsersPage() {
       >
         <div className="space-y-4">
           {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+            <div className="cf-alert cf-alert--error">{error}</div>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="中文名稱" value={nameZh} onChange={(e) => setNameZh(e.target.value)} />
@@ -297,7 +297,7 @@ export function UsersPage() {
               type="checkbox"
               checked={isAdmin}
               onChange={(e) => setIsAdmin(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-[#d9d9d9] text-[#0055dc] focus:ring-[#0055dc]"
             />
             管理員
           </label>
@@ -322,7 +322,7 @@ export function UsersPage() {
                   openChangePassword(editing)
                   setModalOpen(false)
                 }}
-                className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+                className="cf-link mt-2 text-sm"
               >
                 修改密碼
               </button>
@@ -357,7 +357,7 @@ export function UsersPage() {
       >
         <div className="space-y-4">
           {passwordError && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{passwordError}</div>
+            <div className="cf-alert cf-alert--error">{passwordError}</div>
           )}
           <Input
             label="新密碼"

@@ -11,7 +11,6 @@ import {
   getTimeRangeForPreset,
   getUserFeedbacks,
   groupFeedbacksByDay,
-  truncateLabel,
   type DimensionFilter,
   type StatsFilterField,
   type TimePreset,
@@ -30,16 +29,13 @@ import {
   TrafficChartSection,
   type TopStatsItem,
 } from '../components/feedbackCharts'
-import { EmptyState } from '../components/ui'
+import { EmptyState, PageHeader } from '../components/ui'
 
 const RATING_KEYS = ['good', 'normal', 'bad'] as const
 
-function toStatsItems(
-  rows: { label: string; count: number }[],
-  truncateAt?: number,
-): TopStatsItem[] {
+function toStatsItems(rows: { label: string; count: number }[]): TopStatsItem[] {
   return rows.map((row) => ({
-    label: truncateAt ? truncateLabel(row.label, truncateAt) : row.label,
+    label: row.label,
     value: row.label,
     count: row.count,
   }))
@@ -136,40 +132,25 @@ export function FeedbackOverviewPage() {
   const scoreMap = useMemo(() => getScoreMap(data.ratingScores), [data.ratingScores])
   const ratingLabels = useMemo(() => getRatingLabelMap(data.ratingScores), [data.ratingScores])
 
-  const dailyTraffic = useMemo(() => groupFeedbacksByDay(filtered), [filtered])
+  const dailyTraffic = useMemo(
+    () => groupFeedbacksByDay(filtered, startTime, endTime),
+    [filtered, startTime, endTime],
+  )
   const avgScore = useMemo(() => getAverageScore(filtered, scoreMap), [filtered, scoreMap])
   const ratingCounts = useMemo(() => getRatingCounts(filtered), [filtered])
 
-  const topLimit = 5
-  const countryItems = useMemo(() => toStatsItems(countByField(filtered, 'ipCountry', topLimit)), [filtered])
-  const asnItems = useMemo(() => toStatsItems(countByField(filtered, 'ipAsn', topLimit)), [filtered])
-  const ipItems = useMemo(
-    () => toStatsItems(countByField(filtered, 'ipAddress', topLimit), 28),
-    [filtered],
-  )
-  const hostItems = useMemo(
-    () => toStatsItems(countByField(filtered, 'originHost', topLimit), 28),
-    [filtered],
-  )
-  const userAgentItems = useMemo(
-    () => toStatsItems(countByField(filtered, 'userAgent', topLimit), 24),
-    [filtered],
-  )
-  const deviceItems = useMemo(() => toStatsItems(countByField(filtered, 'device', topLimit)), [filtered])
+  const countryItems = useMemo(() => toStatsItems(countByField(filtered, 'ipCountry')), [filtered])
+  const asnItems = useMemo(() => toStatsItems(countByField(filtered, 'ipAsn')), [filtered])
+  const ipItems = useMemo(() => toStatsItems(countByField(filtered, 'ipAddress')), [filtered])
+  const hostItems = useMemo(() => toStatsItems(countByField(filtered, 'originHost')), [filtered])
+  const userAgentItems = useMemo(() => toStatsItems(countByField(filtered, 'userAgent')), [filtered])
+  const deviceItems = useMemo(() => toStatsItems(countByField(filtered, 'device')), [filtered])
   const serviceItems = useMemo(
-    () =>
-      countByServiceId(filtered, data.services, topLimit).map((item) => ({
-        ...item,
-        label: truncateLabel(item.label, 32),
-      })),
+    () => countByServiceId(filtered, data.services),
     [filtered, data.services],
   )
   const organizationItems = useMemo(
-    () =>
-      countByOrganizationViaService(filtered, data.services, data.organizations, topLimit).map((item) => ({
-        ...item,
-        label: truncateLabel(item.label, 32),
-      })),
+    () => countByOrganizationViaService(filtered, data.services, data.organizations),
     [filtered, data.services, data.organizations],
   )
   const ratingItems = useMemo<TopStatsItem[]>(
@@ -185,15 +166,19 @@ export function FeedbackOverviewPage() {
   const hasFilters = dimensionFilters.length > 0 || timePreset !== DEFAULT_TIME_PRESET
 
   return (
-    <div className="cf-analytics">
-      <h1 className="cf-page-title">分析</h1>
+    <>
+      <PageHeader
+        title="回饋資料總覽"
+        description="檢視回饋趨勢、平均分數、來源分布與活動記錄"
+      />
 
       {!user?.organizationIds.length ? (
-        <EmptyState message="您尚未被指派至任何組織，無法檢視回饋總覽" />
+        <EmptyState message="您尚未被指派至任何組織，無法檢視回饋資料總覽" />
       ) : allFeedbacks.length === 0 ? (
         <EmptyState message="目前尚無回饋紀錄" />
       ) : (
-        <div className="cf-panel">
+        <div className="cf-analytics">
+          <div className="cf-panel">
           <TrafficChartSection
             points={dailyTraffic}
             timePreset={timePreset}
@@ -225,15 +210,15 @@ export function FeedbackOverviewPage() {
               <p className="mt-8 text-center text-sm text-[#8c8c8c]">目前篩選條件下尚無回饋紀錄</p>
             ) : (
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <TopStatsPanel title="服務" field="serviceId" items={serviceItems} onInclude={handleInclude} onExclude={handleExclude} />
-                <TopStatsPanel title="組織" field="organization" items={organizationItems} onInclude={handleInclude} onExclude={handleExclude} />
-                <TopStatsPanel title="評價" field="feedbackRating" items={ratingItems} onInclude={handleInclude} onExclude={handleExclude} />
-                <TopStatsPanel title="來源國家/地區" field="ipCountry" items={countryItems} onInclude={handleInclude} onExclude={handleExclude} />
-                <TopStatsPanel title="主要來源 ASN" field="ipAsn" items={asnItems} onInclude={handleInclude} onExclude={handleExclude} />
-                <TopStatsPanel title="客戶端 IP 位址" field="ipAddress" items={ipItems} onInclude={handleInclude} onExclude={handleExclude} />
-                <TopStatsPanel title="主機" field="originHost" items={hostItems} onInclude={handleInclude} onExclude={handleExclude} />
-                <TopStatsPanel title="使用者代理程式" field="userAgent" items={userAgentItems} onInclude={handleInclude} onExclude={handleExclude} />
-                <TopStatsPanel title="裝置" field="device" items={deviceItems} onInclude={handleInclude} onExclude={handleExclude} />
+                <TopStatsPanel title="服務" field="serviceId" allItems={serviceItems} onInclude={handleInclude} onExclude={handleExclude} />
+                <TopStatsPanel title="組織" field="organization" allItems={organizationItems} onInclude={handleInclude} onExclude={handleExclude} />
+                <TopStatsPanel title="評價" field="feedbackRating" allItems={ratingItems} onInclude={handleInclude} onExclude={handleExclude} />
+                <TopStatsPanel title="來源國家/地區" field="ipCountry" allItems={countryItems} onInclude={handleInclude} onExclude={handleExclude} />
+                <TopStatsPanel title="主要來源 ASN" field="ipAsn" allItems={asnItems} onInclude={handleInclude} onExclude={handleExclude} />
+                <TopStatsPanel title="客戶端 IP 位址" field="ipAddress" allItems={ipItems} onInclude={handleInclude} onExclude={handleExclude} />
+                <TopStatsPanel title="主機" field="originHost" allItems={hostItems} onInclude={handleInclude} onExclude={handleExclude} />
+                <TopStatsPanel title="使用者代理程式" field="userAgent" allItems={userAgentItems} onInclude={handleInclude} onExclude={handleExclude} />
+                <TopStatsPanel title="裝置" field="device" allItems={deviceItems} onInclude={handleInclude} onExclude={handleExclude} />
               </div>
             )}
           </div>
@@ -246,8 +231,9 @@ export function FeedbackOverviewPage() {
               ratingLabels={ratingLabels}
             />
           </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

@@ -100,25 +100,25 @@ export function OrganizationsPage() {
       {items.length === 0 ? (
         <EmptyState message="尚無組織資料，點擊「新增組織」開始建立" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50">
+        <div className="cf-card">
+          <table className="cf-table">
+            <thead>
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-600">組織名稱</th>
                 <th className="px-4 py-3 font-medium text-slate-600">組織代碼</th>
                 <th className="px-4 py-3 font-medium text-slate-600 text-right">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {items.map((org) => (
-                <tr key={org.id} className="hover:bg-slate-50">
+                <tr key={org.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{org.nameZh}</td>
                   <td className="px-4 py-3 font-mono text-slate-600">{org.code}</td>
                   <td className="px-4 py-3 text-right">
                     <button
                       type="button"
                       onClick={() => openEdit(org)}
-                      className="mr-2 text-indigo-600 hover:text-indigo-800"
+                      className="cf-link mr-3"
                     >
                       編輯
                     </button>
@@ -144,7 +144,7 @@ export function OrganizationsPage() {
       >
         <div className="space-y-4">
           {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+            <div className="cf-alert cf-alert--error">{error}</div>
           )}
           <Input label="組織名稱" value={nameZh} onChange={(e) => setNameZh(e.target.value)} />
           <Input

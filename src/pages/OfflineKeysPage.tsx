@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { OfflineKey } from '../types'
 import { generateAesKey } from '../lib/crypto'
 import { getData, saveData } from '../lib/storage'
+import { formatDisplayTime } from '../lib/datetime'
 import { Modal } from '../components/Modal'
 import { Button, EmptyState, Input, PageHeader, Select } from '../components/ui'
 
@@ -22,13 +23,7 @@ function defaultExpiresAt(): string {
 }
 
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('zh-TW', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatDisplayTime(iso)
 }
 
 function isExpired(expiresAt: string): boolean {
@@ -146,9 +141,9 @@ export function OfflineKeysPage() {
       ) : items.length === 0 ? (
         <EmptyState message="尚無離線金鑰，點擊「新增離線金鑰」開始建立" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50">
+        <div className="cf-card">
+          <table className="cf-table">
+            <thead>
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-600">所屬組織</th>
                 <th className="px-4 py-3 font-medium text-slate-600">說明</th>
@@ -158,9 +153,9 @@ export function OfflineKeysPage() {
                 <th className="px-4 py-3 font-medium text-slate-600 text-right">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {items.map((key) => (
-                <tr key={key.id} className="hover:bg-slate-50">
+                <tr key={key.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">
                     {getOrgName(key.organizationId)}
                   </td>
@@ -175,7 +170,7 @@ export function OfflineKeysPage() {
                       <button
                         type="button"
                         onClick={() => handleCopy(key.aesKey)}
-                        className="shrink-0 text-xs text-indigo-600 hover:text-indigo-800"
+                        className="cf-link shrink-0 text-xs"
                       >
                         複製
                       </button>
@@ -197,7 +192,7 @@ export function OfflineKeysPage() {
                     <button
                       type="button"
                       onClick={() => openEdit(key)}
-                      className="mr-2 text-indigo-600 hover:text-indigo-800"
+                      className="cf-link mr-3"
                     >
                       編輯
                     </button>
@@ -223,7 +218,7 @@ export function OfflineKeysPage() {
       >
         <div className="space-y-4">
           {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+            <div className="cf-alert cf-alert--error">{error}</div>
           )}
           <Select
             label="所屬組織"
@@ -246,7 +241,7 @@ export function OfflineKeysPage() {
               type="datetime-local"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+              className="cf-input"
             />
           </div>
           {!editing && (

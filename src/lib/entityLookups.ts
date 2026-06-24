@@ -64,7 +64,7 @@ export interface LookupStatsItem {
 export function countByServiceId(
   feedbacks: Feedback[],
   services: Service[],
-  limit = 5,
+  limit?: number,
 ): LookupStatsItem[] {
   const map = new Map<string, { count: number; displayCode: string }>()
   for (const f of feedbacks) {
@@ -76,21 +76,21 @@ export function countByServiceId(
     if (svc) cur.displayCode = svc.code
     map.set(normalized, cur)
   }
-  return [...map.entries()]
+  const sorted = [...map.entries()]
     .map(([, { count, displayCode }]) => ({
       label: formatServiceLabel(displayCode, services),
       value: displayCode,
       count,
     }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, limit)
+  return limit != null ? sorted.slice(0, limit) : sorted
 }
 
 export function countByOrganizationViaService(
   feedbacks: Feedback[],
   services: Service[],
   organizations: Organization[],
-  limit = 5,
+  limit?: number,
 ): LookupStatsItem[] {
   const serviceByCode = buildServiceByCodeMap(services)
   const map = new Map<string, number>()
@@ -98,14 +98,14 @@ export function countByOrganizationViaService(
     const orgId = resolveOrganizationIdFromFeedback(f, serviceByCode)
     map.set(orgId, (map.get(orgId) ?? 0) + 1)
   }
-  return [...map.entries()]
+  const sorted = [...map.entries()]
     .map(([orgId, count]) => ({
       label: formatOrganizationLabel(orgId, organizations),
       value: orgId,
       count,
     }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, limit)
+  return limit != null ? sorted.slice(0, limit) : sorted
 }
 
 export function serviceCodesMatch(a: string, b: string): boolean {

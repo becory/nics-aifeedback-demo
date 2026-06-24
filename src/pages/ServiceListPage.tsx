@@ -32,9 +32,9 @@ export function ServiceListPage() {
       ) : services.length === 0 ? (
         <EmptyState message="您所屬的組織目前尚無服務" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50">
+        <div className="cf-card">
+          <table className="cf-table">
+            <thead>
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-600">服務名稱</th>
                 <th className="px-4 py-3 font-medium text-slate-600">所屬組織</th>
@@ -42,9 +42,9 @@ export function ServiceListPage() {
                 <th className="px-4 py-3 font-medium text-slate-600">網域</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {services.map((svc) => (
-                <tr key={svc.id} className="hover:bg-slate-50">
+                <tr key={svc.id}>
                   <td className="px-4 py-3 font-medium text-slate-900">{svc.name}</td>
                   <td className="px-4 py-3 text-slate-600">{getOrgName(svc.organizationId)}</td>
                   <td className="px-4 py-3 font-mono text-slate-600">{svc.code}</td>

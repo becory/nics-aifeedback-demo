@@ -75,9 +75,9 @@ export function ScoresPage() {
         }
       />
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50">
+      <div className="cf-card">
+        <table className="cf-table">
+          <thead>
             <tr>
               <th className="px-4 py-3 font-medium text-slate-600">評價代碼</th>
               <th className="px-4 py-3 font-medium text-slate-600">中文名稱</th>
@@ -86,9 +86,9 @@ export function ScoresPage() {
               <th className="px-4 py-3 font-medium text-slate-600">操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody>
             {RATING_KEYS.map((key) => (
-              <tr key={key} className="hover:bg-slate-50">
+              <tr key={key}>
                 <td className="px-4 py-3 font-mono text-slate-600">{RATING_KEY_LABELS[key]}</td>
                 <td className="px-4 py-3 font-medium text-slate-900">{config[key].labelZh}</td>
                 <td className="px-4 py-3 text-slate-600">{config[key].descriptionZh}</td>
@@ -116,7 +116,7 @@ export function ScoresPage() {
             onChange={(e) => setForm((prev) => ({ ...prev, labelZh: e.target.value }))}
           />
           <div className="space-y-1.5">
-            <label htmlFor="descriptionZh" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="descriptionZh" className="cf-label">
               中文說明
             </label>
             <textarea
@@ -124,7 +124,7 @@ export function ScoresPage() {
               value={form.descriptionZh}
               onChange={(e) => setForm((prev) => ({ ...prev, descriptionZh: e.target.value }))}
               rows={3}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+              className="cf-input"
             />
           </div>
           <Input
