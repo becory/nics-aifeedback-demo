@@ -1,47 +1,57 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { QRCodeSVG } from 'qrcode.react'
-import { useNavigate } from 'react-router-dom'
-import { AuthLayout } from '../components/AuthLayout'
-import { Button } from '../components/ui'
-import { useAuth } from '../lib/auth'
-import { getDefaultHomePath } from '../lib/routes'
-import { createTotpUri } from '../lib/totp'
+import { useEffect, useState, type FormEvent } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import { useNavigate } from "react-router-dom";
+import { AuthLayout } from "../components/AuthLayout";
+import { Button } from "../components/ui";
+import { useAuth } from "../lib/auth";
+import { getDefaultHomePath } from "../lib/routes";
+import { postEnable2FA } from "../api/auth";
 
 export function Setup2FAPage() {
-  const { user, setup2FA, generatePendingSecret, pendingSecret } = useAuth()
-  const navigate = useNavigate()
-  const [secret, setSecret] = useState('')
-  const [code, setCode] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const { user, setup2FA, session } = useAuth();
+  const navigate = useNavigate();
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [uri, setUri] = useState("");
 
   useEffect(() => {
-    if (pendingSecret) {
-      setSecret(pendingSecret)
-    } else if (user?.totpSecret) {
-      setSecret(user.totpSecret)
-    } else {
-      setSecret(generatePendingSecret())
+    if (session?.accessToken) {
+      navigate(getDefaultHomePath(user?.isSystemAdmin ?? false), {
+        replace: true,
+      });
+      return;
     }
-  }, [pendingSecret, generatePendingSecret, user?.totpSecret])
+    if (!session?.pendingToken) {
+      navigate("/login", { replace: true });
+    }
+  }, [session?.accessToken, session?.pendingToken, user, navigate]);
 
-  const uri = secret && user ? createTotpUri(user.email, secret) : ''
+  useEffect(() => {
+    if (!session?.pendingToken) return;
+    const initializeQRCode = async () => {
+      try {
+        const get2FAResponse = await postEnable2FA(session.pendingToken || "");
+        setUri(get2FAResponse.data.qrCodeUri);
+      } catch (error) {
+        console.error("Error enabling 2FA:", error);
+      }
+    };
+    initializeQRCode();
+  }, [session?.pendingToken]);
 
   const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    const err = await setup2FA(code, secret)
-    setLoading(false)
+    const err = await setup2FA(code);
+    setLoading(false);
 
     if (err) {
-      setError(err)
-      return
+      setError(err);
     }
-
-    navigate(getDefaultHomePath(user?.isAdmin ?? false))
-  }
+  };
 
   return (
     <AuthLayout
@@ -53,7 +63,9 @@ export function Setup2FAPage() {
         {error && <div className="cf-alert cf-alert--error">{error}</div>}
 
         <div className="cf-auth__qr">
-          <div className="cf-auth__qr-box">{uri && <QRCodeSVG value={uri} size={180} />}</div>
+          <div className="cf-auth__qr-box">
+            {uri && <QRCodeSVG value={uri} size={180} />}
+          </div>
         </div>
 
         <div className="cf-field">
@@ -67,17 +79,21 @@ export function Setup2FAPage() {
             pattern="[0-9]*"
             maxLength={6}
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             className="cf-input cf-input--center text-lg tracking-widest"
             placeholder="000000"
             required
           />
         </div>
 
-        <Button type="submit" disabled={loading || code.length !== 6} className="cf-btn--block mt-6">
-          {loading ? '驗證中...' : '完成綁定'}
+        <Button
+          type="submit"
+          disabled={loading || code.length !== 6}
+          className="cf-btn--block mt-6"
+        >
+          {loading ? "驗證中..." : "完成綁定"}
         </Button>
       </form>
     </AuthLayout>
-  )
+  );
 }

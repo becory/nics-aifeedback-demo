@@ -48,13 +48,10 @@ async function createDefaultData(): Promise<AppData> {
     users: [
       {
         id: DEFAULT_ADMIN_ID,
-        nameZh: '系統管理員',
+        name: '系統管理員',
         email: 'admin',
-        passwordHash: await hashPassword('admin'),
-        totpSecret: DEFAULT_ADMIN_TOTP_SECRET,
-        totpEnabled: false,
-        organizationIds: getDefaultAdminOrganizationIds(),
-        isAdmin: true,
+        orgs: getDefaultAdminOrganizationIds(),
+        isSystemAdmin: true,
       },
     ],
   }

@@ -14,13 +14,10 @@ export interface Service {
 
 export interface User {
   id: string
-  nameZh: string
+  name: string
   email: string
-  passwordHash: string
-  totpSecret?: string
-  totpEnabled: boolean
-  organizationIds: string[]
-  isAdmin: boolean
+  orgs: string[]
+  isSystemAdmin: boolean
 }
 
 export interface OfflineKey {
@@ -72,7 +69,25 @@ export interface AppData {
 
 export type AuthStep = 'login' | '2fa_setup' | '2fa_verify' | 'authenticated'
 
+export interface LoginResponse {
+  requiresTwoFactorSetup: boolean
+  requiresTwoFactor: boolean
+  pendingToken: string
+}
+
 export interface Session {
-  userId: string
-  step: AuthStep
+  requiresTwoFactorSetup?: boolean
+  requiresTwoFactor?: boolean
+  pendingToken?: string
+  accessToken?: string
+}
+
+export interface Enable2FAResponse {
+  sharedKey: string
+  qrCodeUri: string
+}
+
+export interface TwoFactorAuthResponse {
+  accessToken: string
+  expiresIn: number
 }

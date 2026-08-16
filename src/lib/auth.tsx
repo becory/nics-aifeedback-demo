@@ -4,118 +4,164 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
-} from 'react'
-import type { Session, User } from '../types'
-import { hashPassword } from '../lib/crypto'
-import { findUserByLogin, getData, initStorage, updateUser } from '../lib/storage'
-import { createTotpSecret, verifyTotp } from '../lib/totp'
-
-const SESSION_KEY = 'aifeedback_session'
+} from "react";
+import type { Session, User } from "../types";
+import { initStorage } from "../lib/storage";
+import {
+  getUserInfo,
+  post2FA,
+  postConfirm2FA,
+  postLogin,
+  postRefresh,
+} from "../api/auth";
+import { setAccessToken, setOnUnauthorized, setRefreshHandler } from "../api/api";
+import axios from "axios";
 
 interface AuthContextValue {
-  ready: boolean
-  session: Session | null
-  user: User | null
-  login: (username: string, password: string) => Promise<{ error?: string; step?: '2fa_setup' | '2fa_verify' }>
-  verify2FA: (code: string) => Promise<string | null>
-  setup2FA: (code: string, secret: string) => Promise<string | null>
-  logout: () => void
-  pendingSecret: string | null
-  generatePendingSecret: () => string
+  ready: boolean;
+  session: Session | null;
+  user: User | null;
+  login: (
+    username: string,
+    password: string,
+  ) => Promise<{ error?: string; step?: "2fa_setup" | "2fa_verify" }>;
+  verify2FA: (code: string) => Promise<string | null>;
+  setup2FA: (code: string) => Promise<string | null>;
+  logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null)
-
-function loadSession(): Session | null {
-  const raw = sessionStorage.getItem(SESSION_KEY)
-  if (!raw) return null
-  return JSON.parse(raw) as Session
-}
-
-function saveSession(session: Session | null): void {
-  if (session) {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
-  } else {
-    sessionStorage.removeItem(SESSION_KEY)
-  }
-}
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false)
-  const [session, setSession] = useState<Session | null>(null)
-  const [pendingSecret, setPendingSecret] = useState<string | null>(null)
+  const [ready, setReady] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const didInit = useRef(false);
+
+  const refreshSession = useCallback(async () => {
+    const refreshData = await postRefresh();
+    setAccessToken(refreshData.data.accessToken);
+    setSession((prev) =>
+      prev
+        ? { ...prev, accessToken: refreshData.data.accessToken }
+        : {
+            requiresTwoFactorSetup: false,
+            requiresTwoFactor: false,
+            accessToken: refreshData.data.accessToken,
+          },
+    );
+    const userInfo = await getUserInfo();
+    setUser(userInfo.data);
+  }, []);
 
   useEffect(() => {
-    initStorage().then(() => {
-      setSession(loadSession())
-      setReady(true)
-    })
-  }, [])
+    if (didInit.current) return;
+    didInit.current = true;
+    initStorage().then(async () => {
+      try {
+        await refreshSession();
+      } catch {
+        // 沒有有效的 refresh token，維持未登入狀態
+      } finally {
+        setReady(true);
+      }
+    });
+  }, [refreshSession]);
 
-  const user = useMemo(() => {
-    if (!session) return null
-    try {
-      return getData().users.find((u) => u.id === session.userId) ?? null
-    } catch {
-      return null
-    }
-  }, [session])
+  useEffect(() => {
+    setAccessToken(session?.accessToken ?? null);
+  }, [session?.accessToken]);
 
-  const setAndSave = useCallback((next: Session | null) => {
-    setSession(next)
-    saveSession(next)
-  }, [])
+  useEffect(() => {
+    setRefreshHandler(refreshSession);
+    setOnUnauthorized(() => {
+      setAccessToken(null);
+      setSession(null);
+      setUser(null);
+    });
+    return () => {
+      setRefreshHandler(null);
+      setOnUnauthorized(null);
+    };
+  }, [refreshSession]);
 
   const login = useCallback(async (username: string, password: string) => {
-    const found = findUserByLogin(username)
-    if (!found) return { error: '帳號或密碼錯誤' }
-
-    const hash = await hashPassword(password)
-    if (hash !== found.passwordHash) return { error: '帳號或密碼錯誤' }
-
-    if (!found.totpEnabled) {
-      setAndSave({ userId: found.id, step: '2fa_setup' })
-      return { step: '2fa_setup' as const }
+    try {
+      const getLoginData = await postLogin(username, password);
+      setSession(getLoginData.data);
+      if (getLoginData.data.requiresTwoFactorSetup) {
+        return { step: "2fa_setup" as const };
+      }
+      return { step: "2fa_verify" as const };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.log(error.status);
+        console.error(error.response);
+        return { error: "帳號或密碼錯誤" };
+      }
+      console.error(error);
+      return { error: "登入時發生未知錯誤" };
     }
+  }, []);
 
-    setAndSave({ userId: found.id, step: '2fa_verify' })
-    return { step: '2fa_verify' as const }
-  }, [setAndSave])
+  const verify2FA = useCallback(
+    async (code: string) => {
+      if (!session?.pendingToken) return "請先登入";
 
-  const verify2FA = useCallback(async (code: string) => {
-    if (!session) return '請先登入'
-    const current = getData().users.find((u) => u.id === session.userId)
-    if (!current?.totpSecret) return '二階段驗證尚未設定'
+      if (session?.requiresTwoFactorSetup) return "二階段驗證尚未設定";
 
-    if (!verifyTotp(code, current.totpSecret)) return '驗證碼錯誤'
+      try {
+        const check2FA = await post2FA(session.pendingToken, code);
+        setAccessToken(check2FA.data.accessToken);
+        setSession((prev) =>
+          prev ? { ...prev, accessToken: check2FA.data.accessToken } : prev,
+        );
+        const userInfo = await getUserInfo();
+        setUser(userInfo.data);
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          console.log(error.status);
+          console.error(error.response);
+          return "驗證碼錯誤";
+        }
+        console.error(error);
+        return "驗證時發生未知錯誤";
+      }
 
-    setAndSave({ userId: session.userId, step: 'authenticated' })
-    return null
-  }, [session, setAndSave])
+      return null;
+    },
+    [session],
+  );
 
-  const generatePendingSecret = useCallback(() => {
-    const secret = createTotpSecret()
-    setPendingSecret(secret)
-    return secret
-  }, [])
+  const setup2FA = useCallback(
+    async (code: string) => {
+      if (!session?.pendingToken) return "請先登入";
+      try {
+        const confirm2FA = await postConfirm2FA(session.pendingToken, code);
+        setAccessToken(confirm2FA.data.accessToken);
+        setSession((prev) =>
+          prev ? { ...prev, accessToken: confirm2FA.data.accessToken } : prev,
+        );
+        const userInfo = await getUserInfo();
+        setUser(userInfo.data);
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          console.log(error.status);
+          console.error(error.response);
+          return "驗證碼錯誤，請確認已掃描 QR Code";
+        }
+        console.error(error);
+        return "綁定時發生未知錯誤";
+      }
+      return null;
+    },
+    [session],
+  );
 
-  const setup2FA = useCallback(async (code: string, secret: string) => {
-    if (!session) return '請先登入'
-
-    if (!verifyTotp(code, secret)) return '驗證碼錯誤，請確認已掃描 QR Code'
-
-    updateUser(session.userId, { totpSecret: secret, totpEnabled: true })
-    setPendingSecret(null)
-    setAndSave({ userId: session.userId, step: 'authenticated' })
-    return null
-  }, [session, setAndSave])
-
-  const logout = useCallback(() => {
-    setPendingSecret(null)
-    setAndSave(null)
-  }, [setAndSave])
+  const logout = useCallback(() => {}, []);
 
   const value = useMemo(
     () => ({
@@ -126,27 +172,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verify2FA,
       setup2FA,
       logout,
-      pendingSecret,
-      generatePendingSecret,
     }),
-    [
-      ready,
-      session,
-      user,
-      login,
-      verify2FA,
-      setup2FA,
-      logout,
-      pendingSecret,
-      generatePendingSecret,
-    ],
-  )
+    [ready, session, user, login, verify2FA, setup2FA, logout],
+  );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }
