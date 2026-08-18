@@ -21,10 +21,10 @@ export interface Service {
 }
 
 export interface CreateServiceRequest {
-  orgId: string
+  organizationId: string
   name: string
   code: string
-  receivingDomain: string
+  host: string
 }
 
 export type UpdateServiceRequest = CreateServiceRequest
@@ -52,7 +52,7 @@ export interface OfflineKey {
 }
 
 export interface CreateOfflineKeyRequest {
-  orgId: string
+  organizationId: string
   description: string
   expiresAt: string
 }

@@ -2,7 +2,7 @@ import type { CreateServiceRequest, DataResponse, Service, UpdateServiceRequest 
 import { instance } from './api';
 
 export interface GetServicesParams {
-  orgId?: string
+  organizationId?: string
   code?: string
   isActive?: boolean
   keyword?: string

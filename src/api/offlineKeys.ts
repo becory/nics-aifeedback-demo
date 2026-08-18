@@ -1,7 +1,7 @@
 import type { CreateOfflineKeyRequest, DataResponse, OfflineKey, UpdateOfflineKeyRequest } from '../types';
 import { instance } from './api';
 
-export const getOfflineKeys = (orgId?: string) => instance.get<DataResponse<OfflineKey[]>>('/offline-keys', { params: { orgId } })
+export const getOfflineKeys = (organizationId?: string) => instance.get<DataResponse<OfflineKey[]>>('/offline-keys', { params: { organizationId } })
 
 export const getOfflineKeyById = (id: string) => instance.get<OfflineKey>(`/offline-keys/${id}`)
 

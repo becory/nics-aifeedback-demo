@@ -1,24 +1,32 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../lib/auth";
-import { getData } from "../lib/storage";
+import { getOrganizations, getServices } from "../api";
+import type { Organization, Service } from "../types";
 import { EmptyState, PageHeader } from "../components/ui";
 
 export function ServiceListPage() {
   const { user } = useAuth();
-  const data = getData();
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
 
-  const organizations = useMemo(
-    () => data.organizations.filter((o) => user?.orgs.includes(o.id)),
-    [data.organizations, user?.orgs],
-  );
-
-  const services = useMemo(
-    () => data.services.filter((s) => user?.orgs.includes(s.organizationId)),
-    [data.services, user?.orgs],
-  );
+  useEffect(() => {
+    if (!user) return;
+    getOrganizations().then((res) =>
+      setOrganizations(
+        res.data.data.filter((o) => user.organizationIds.includes(o.id)),
+      ),
+    );
+    getServices().then((res) =>
+      setServices(
+        res.data.data.filter((s) =>
+          user.organizationIds.includes(s.organizationId),
+        ),
+      ),
+    );
+  }, [user]);
 
   const getOrgName = (orgId: string) =>
-    organizations.find((o) => o.id === orgId)?.nameZh ?? "—";
+    organizations.find((o) => o.id === orgId)?.name ?? "—";
 
   return (
     <>
@@ -27,7 +35,7 @@ export function ServiceListPage() {
         description="檢視您所屬組織的服務（僅供查閱）"
       />
 
-      {!user?.orgs.length ? (
+      {!user?.organizationIds.length ? (
         <EmptyState message="您尚未被指派至任何組織，無法檢視服務" />
       ) : services.length === 0 ? (
         <EmptyState message="您所屬的組織目前尚無服務" />
