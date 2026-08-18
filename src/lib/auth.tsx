@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "../types";
-import { initStorage } from "../lib/storage";
 import {
   getUserInfo,
   post2FA,
@@ -17,7 +16,11 @@ import {
   postLogin,
   postRefresh,
 } from "../api/auth";
-import { setAccessToken, setOnUnauthorized, setRefreshHandler } from "../api/api";
+import {
+  setAccessToken,
+  setOnUnauthorized,
+  setRefreshHandler,
+} from "../api/api";
 import axios from "axios";
 
 interface AuthContextValue {
@@ -60,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (didInit.current) return;
     didInit.current = true;
-    initStorage().then(async () => {
+    const init = async () => {
       try {
         await refreshSession();
       } catch {
@@ -68,7 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } finally {
         setReady(true);
       }
-    });
+    };
+    init();
   }, [refreshSession]);
 
   useEffect(() => {
