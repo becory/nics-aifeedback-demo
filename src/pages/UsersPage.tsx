@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { CreateUser, Organization, User } from "../types";
-import { getData, resetUserTotp, saveData } from "../lib/storage";
 import { Modal } from "../components/Modal";
 import {
   Button,
@@ -12,9 +11,11 @@ import {
 import {
   changeUserPassword,
   createUser,
+  deleteUser,
   getOrganizations,
   getUserById,
   getUsers,
+  resetUser2FA,
   updateUser,
 } from "../api";
 import { getApiErrorMessage } from "../api/api";
@@ -182,7 +183,7 @@ export function UsersPage() {
     setPasswordTarget(null);
   };
 
-  const handleReset2FA = (user: User) => {
+  const handleReset2FA = async (user: User) => {
     if (
       !confirm(
         `確定要重設「${user.name}」的二階段驗證？該使用者下次登入時需重新綁定。`,
@@ -191,21 +192,33 @@ export function UsersPage() {
       return;
     }
 
-    resetUserTotp(user.id);
+    try {
+      await resetUser2FA(user.id);
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      alert(`重設二階段驗證時發生錯誤${detail ? `：${detail}` : ""}`);
+      return;
+    }
+
     refresh();
   };
 
-  const handleDelete = (user: User) => {
-    const data = getData();
-    const adminCount = data.users.filter((u) => u.isSystemAdmin).length;
+  const handleDelete = async (user: User) => {
+    const adminCount = items.filter((u) => u.isSystemAdmin).length;
     if (user.isSystemAdmin && adminCount <= 1) {
       alert("系統至少需要一位管理員，無法刪除");
       return;
     }
     if (!confirm(`確定要刪除使用者「${user.name}」？`)) return;
 
-    data.users = data.users.filter((u) => u.id !== user.id);
-    saveData(data);
+    try {
+      await deleteUser(user.id);
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      alert(`刪除使用者時發生錯誤${detail ? `：${detail}` : ""}`);
+      return;
+    }
+
     refresh();
   };
 
@@ -292,7 +305,7 @@ export function UsersPage() {
                     >
                       修改密碼
                     </button>
-                    {user.totpEnabled && (
+                    {user.twoFactorEnabled && (
                       <button
                         type="button"
                         onClick={() => handleReset2FA(user)}
@@ -381,7 +394,7 @@ export function UsersPage() {
               <p className="text-sm text-slate-700">
                 二階段驗證狀態：
                 <span className="ml-1 font-medium">
-                  {editing.totpEnabled ? "已綁定" : "待綁定"}
+                  {editing.twoFactorEnabled ? "已綁定" : "待綁定"}
                 </span>
               </p>
               <button
@@ -394,7 +407,7 @@ export function UsersPage() {
               >
                 修改密碼
               </button>
-              {editing.totpEnabled && (
+              {editing.twoFactorEnabled && (
                 <button
                   type="button"
                   onClick={() => {
