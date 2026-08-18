@@ -2,35 +2,35 @@
   {
     "id": "svc-system-a",
     "name": "系統A",
-    "organizationId": "org-nics",
+    "organizationId": "NICS",
     "code": "SYSTEM_A",
     "host": "https://google.com"
   },
   {
     "id": "svc-test",
     "name": "測試",
-    "organizationId": "org-moda",
+    "organizationId": "MODA",
     "code": "TEST",
     "host": "https://moda.gov.tw"
   },
   {
     "id": "svc-test2",
     "name": "測試2",
-    "organizationId": "org-acs",
+    "organizationId": "ACS",
     "code": "TEST2",
     "host": "https://acs.gov.tw"
   },
   {
     "id": "svc-demo",
     "name": "demo",
-    "organizationId": "org-nics",
+    "organizationId": "NICS",
     "code": "DEMO",
     "host": "https://demo.gov.tw"
   },
   {
     "id": "svc-askme",
     "name": "askme",
-    "organizationId": "org-nics",
+    "organizationId": "NICS",
     "code": "ASKME",
     "host": "https://google.com"
   }

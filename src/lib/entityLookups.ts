@@ -23,9 +23,9 @@ export function formatServiceLabel(serviceCode: string, services: Service[]): st
 
 export function formatOrganizationLabel(orgId: string, organizations: Organization[]): string {
   const org = organizations.find((o) => o.id === orgId)
-  if (org) return `${org.nameZh} (${org.code})`
+  if (org) return `${org.name} (${org.code})`
   const byCode = organizations.find((o) => o.code.toLowerCase() === orgId.toLowerCase())
-  if (byCode) return `${byCode.nameZh} (${byCode.code})`
+  if (byCode) return `${byCode.name} (${byCode.code})`
   return `未知 (${orgId})`
 }
 

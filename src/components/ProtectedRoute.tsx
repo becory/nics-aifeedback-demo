@@ -1,93 +1,88 @@
-import { Navigate, Outlet } from 'react-router-dom'
-import { useAuth } from '../lib/auth'
-import { getData } from '../lib/storage'
-import { getDefaultHomePath } from '../lib/routes'
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../lib/auth";
+import { getDefaultHomePath } from "../lib/routes";
 
 export function ProtectedRoute() {
-  const { ready, session } = useAuth()
+  const { ready, session } = useAuth();
 
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
         <div className="cf-spinner" />
       </div>
-    )
+    );
   }
 
-  if (!session) return <Navigate to="/login" replace />
+  if (!session) return <Navigate to="/login" replace />;
+  if (!session.accessToken) {
+    if (session.requiresTwoFactorSetup)
+      return <Navigate to="/2fa/setup" replace />;
+    if (session.requiresTwoFactor) return <Navigate to="/2fa/verify" replace />;
+    return <Navigate to="/login" replace />;
+  }
 
-  if (session.step === '2fa_setup') return <Navigate to="/2fa/setup" replace />
-  if (session.step === '2fa_verify') return <Navigate to="/2fa/verify" replace />
-  if (session.step !== 'authenticated') return <Navigate to="/login" replace />
-
-  return <Outlet />
+  return <Outlet />;
 }
 
 export function AdminRoute() {
-  const { ready, user } = useAuth()
+  const { ready, user } = useAuth();
 
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
         <div className="cf-spinner" />
       </div>
-    )
+    );
   }
 
-  if (!user?.isAdmin) return <Navigate to="/my-services" replace />
+  if (!user?.isSystemAdmin) return <Navigate to="/my-services" replace />;
 
-  return <Outlet />
-}
-
-function getAuthenticatedHome(): string {
-  try {
-    const session = sessionStorage.getItem('aifeedback_session')
-    if (!session) return '/my-services'
-    const { userId } = JSON.parse(session) as { userId: string }
-    const user = getData().users.find((u) => u.id === userId)
-    return getDefaultHomePath(user?.isAdmin ?? false)
-  } catch {
-    return '/my-services'
-  }
+  return <Outlet />;
 }
 
 export function GuestRoute() {
-  const { ready, session } = useAuth()
+  const { ready, session, user } = useAuth();
 
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
         <div className="cf-spinner" />
       </div>
-    )
+    );
   }
 
-  if (session?.step === 'authenticated') {
-    return <Navigate to={getAuthenticatedHome()} replace />
+  if (session?.accessToken) {
+    return (
+      <Navigate to={getDefaultHomePath(user?.isSystemAdmin ?? false)} replace />
+    );
   }
-  if (session?.step === '2fa_setup') return <Navigate to="/2fa/setup" replace />
-  if (session?.step === '2fa_verify') return <Navigate to="/2fa/verify" replace />
+  if (session?.requiresTwoFactorSetup)
+    return <Navigate to="/2fa/setup" replace />;
+  if (session?.requiresTwoFactor) return <Navigate to="/2fa/verify" replace />;
 
-  return <Outlet />
+  return <Outlet />;
 }
 
-export function TwoFactorRoute({ mode }: { mode: 'setup' | 'verify' }) {
-  const { ready, session } = useAuth()
+export function TwoFactorRoute({ mode }: { mode: "setup" | "verify" }) {
+  const { ready, session, user } = useAuth();
 
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
         <div className="cf-spinner" />
       </div>
-    )
+    );
   }
-
-  if (!session) return <Navigate to="/login" replace />
-  if (session.step === 'authenticated') {
-    return <Navigate to={getAuthenticatedHome()} replace />
+  if (!session) return <Navigate to="/login" replace />;
+  if (session.accessToken) {
+    return (
+      <Navigate to={getDefaultHomePath(user?.isSystemAdmin ?? false)} replace />
+    );
   }
-  if (mode === 'setup' && session.step !== '2fa_setup') return <Navigate to="/2fa/verify" replace />
-  if (mode === 'verify' && session.step !== '2fa_verify') return <Navigate to="/2fa/setup" replace />
+  if (mode === "setup" && !session.requiresTwoFactorSetup)
+    return <Navigate to="/2fa/verify" replace />;
+  if (mode === "verify" && session.requiresTwoFactorSetup)
+    return <Navigate to="/2fa/setup" replace />;
 
-  return <Outlet />
+  return <Outlet />;
 }

@@ -1,128 +1,149 @@
-import { useState } from 'react'
-import type { OfflineKey } from '../types'
-import { generateAesKey } from '../lib/crypto'
-import { getData, saveData } from '../lib/storage'
-import { formatDisplayTime } from '../lib/datetime'
-import { Modal } from '../components/Modal'
-import { Button, EmptyState, Input, PageHeader, Select } from '../components/ui'
-
-function generateId() {
-  return crypto.randomUUID()
-}
+import { useEffect, useState } from "react";
+import type { OfflineKey, Organization } from "../types";
+import {
+  createOfflineKey,
+  deleteOfflineKey,
+  getOfflineKeys,
+  getOrganizations,
+  updateOfflineKey,
+} from "../api";
+import { getApiErrorMessage } from "../api/api";
+import { formatDisplayTime } from "../lib/datetime";
+import { Modal } from "../components/Modal";
+import {
+  Button,
+  EmptyState,
+  Input,
+  PageHeader,
+  Select,
+} from "../components/ui";
 
 function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function defaultExpiresAt(): string {
-  const d = new Date()
-  d.setFullYear(d.getFullYear() + 1)
-  return toDatetimeLocal(d.toISOString())
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return toDatetimeLocal(d.toISOString());
 }
 
 function formatDateTime(iso: string): string {
-  return formatDisplayTime(iso)
+  return formatDisplayTime(iso);
 }
 
 function isExpired(expiresAt: string): boolean {
-  return new Date(expiresAt).getTime() <= Date.now()
+  return new Date(expiresAt).getTime() <= Date.now();
 }
 
 export function OfflineKeysPage() {
-  const [items, setItems] = useState(() => getData().offlineKeys)
-  const [organizations, setOrganizations] = useState(() => getData().organizations)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<OfflineKey | null>(null)
-  const [organizationId, setOrganizationId] = useState('')
-  const [description, setDescription] = useState('')
-  const [expiresAt, setExpiresAt] = useState('')
-  const [error, setError] = useState('')
+  const [items, setItems] = useState<OfflineKey[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<OfflineKey | null>(null);
+  const [organizationId, setOrganizationId] = useState("");
+  const [description, setDescription] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [error, setError] = useState("");
 
-  const refresh = () => {
-    const data = getData()
-    setItems(data.offlineKeys)
-    setOrganizations(data.organizations)
-  }
+  const refresh = async () => {
+    const [keys, orgs] = await Promise.all([
+      getOfflineKeys(),
+      getOrganizations(),
+    ]);
+    setItems(keys.data.data);
+    setOrganizations(orgs.data.data);
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
 
   const getOrgName = (orgId: string) =>
-    organizations.find((o) => o.id === orgId)?.nameZh ?? '—'
+    organizations.find((o) => o.id === orgId)?.name ?? "—";
 
   const openCreate = () => {
-    setEditing(null)
-    setOrganizationId(organizations[0]?.id ?? '')
-    setDescription('')
-    setExpiresAt(defaultExpiresAt())
-    setError('')
-    setModalOpen(true)
-  }
+    setEditing(null);
+    setOrganizationId(organizations[0]?.id ?? "");
+    setDescription("");
+    setExpiresAt(defaultExpiresAt());
+    setError("");
+    setModalOpen(true);
+  };
 
   const openEdit = (key: OfflineKey) => {
-    setEditing(key)
-    setOrganizationId(key.organizationId)
-    setDescription(key.description)
-    setExpiresAt(toDatetimeLocal(key.expiresAt))
-    setError('')
-    setModalOpen(true)
-  }
+    setEditing(key);
+    setOrganizationId(key.organizationId);
+    setDescription(key.description);
+    setExpiresAt(toDatetimeLocal(key.expiresAt));
+    setError("");
+    setModalOpen(true);
+  };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!organizationId) {
-      setError('請選擇所屬組織')
-      return
+      setError("請選擇所屬組織");
+      return;
     }
     if (!expiresAt) {
-      setError('請設定到期時間')
-      return
+      setError("請設定到期時間");
+      return;
     }
 
-    const expiresAtIso = new Date(expiresAt).toISOString()
+    const expiresAtIso = new Date(expiresAt).toISOString();
     if (new Date(expiresAtIso).getTime() <= Date.now()) {
-      setError('到期時間必須晚於現在')
-      return
+      setError("到期時間必須晚於現在");
+      return;
     }
 
-    const data = getData()
-
-    if (editing) {
-      data.offlineKeys = data.offlineKeys.map((k) =>
-        k.id === editing.id
-          ? { ...k, organizationId, description: description.trim(), expiresAt: expiresAtIso }
-          : k,
-      )
-    } else {
-      data.offlineKeys.push({
-        id: generateId(),
-        organizationId,
-        description: description.trim(),
-        aesKey: generateAesKey(),
-        expiresAt: expiresAtIso,
-        createdAt: new Date().toISOString(),
-      })
+    try {
+      if (editing) {
+        await updateOfflineKey(editing.id, {
+          description: description.trim(),
+          expiresAt: expiresAtIso,
+        });
+      } else {
+        await createOfflineKey({
+          organizationId,
+          description: description.trim(),
+          expiresAt: expiresAtIso,
+        });
+      }
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      setError(
+        `${editing ? "更新" : "新增"}離線金鑰時發生錯誤${detail ? `：${detail}` : ""}`,
+      );
+      return;
     }
 
-    saveData(data)
-    refresh()
-    setModalOpen(false)
-  }
+    refresh();
+    setModalOpen(false);
+  };
 
-  const handleDelete = (key: OfflineKey) => {
-    if (!confirm(`確定要刪除此離線金鑰？`)) return
+  const handleDelete = async (key: OfflineKey) => {
+    if (!confirm(`確定要刪除此離線金鑰？`)) return;
 
-    const data = getData()
-    data.offlineKeys = data.offlineKeys.filter((k) => k.id !== key.id)
-    saveData(data)
-    refresh()
-  }
+    try {
+      await deleteOfflineKey(key.id);
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      alert(`刪除離線金鑰時發生錯誤${detail ? `：${detail}` : ""}`);
+      return;
+    }
+
+    refresh();
+  };
 
   const handleCopy = async (aesKey: string) => {
     try {
-      await navigator.clipboard.writeText(aesKey)
+      await navigator.clipboard.writeText(aesKey);
     } catch {
       // ignore
     }
-  }
+  };
 
   return (
     <>
@@ -145,12 +166,20 @@ export function OfflineKeysPage() {
           <table className="cf-table">
             <thead>
               <tr>
-                <th className="px-4 py-3 font-medium text-slate-600">所屬組織</th>
+                <th className="px-4 py-3 font-medium text-slate-600">
+                  所屬組織
+                </th>
                 <th className="px-4 py-3 font-medium text-slate-600">說明</th>
-                <th className="px-4 py-3 font-medium text-slate-600">AES KEY</th>
-                <th className="px-4 py-3 font-medium text-slate-600">到期時間</th>
+                <th className="px-4 py-3 font-medium text-slate-600">
+                  AES KEY
+                </th>
+                <th className="px-4 py-3 font-medium text-slate-600">
+                  到期時間
+                </th>
                 <th className="px-4 py-3 font-medium text-slate-600">狀態</th>
-                <th className="px-4 py-3 font-medium text-slate-600 text-right">操作</th>
+                <th className="px-4 py-3 font-medium text-slate-600 text-right">
+                  操作
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -160,7 +189,7 @@ export function OfflineKeysPage() {
                     {getOrgName(key.organizationId)}
                   </td>
                   <td className="max-w-[160px] truncate px-4 py-3 text-slate-600">
-                    {key.description || '—'}
+                    {key.description || "—"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -176,16 +205,18 @@ export function OfflineKeysPage() {
                       </button>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{formatDateTime(key.expiresAt)}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {formatDateTime(key.expiresAt)}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                         isExpired(key.expiresAt)
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-green-100 text-green-700'
+                          ? "bg-red-100 text-red-700"
+                          : "bg-green-100 text-green-700"
                       }`}
                     >
-                      {isExpired(key.expiresAt) ? '已過期' : '有效'}
+                      {isExpired(key.expiresAt) ? "已過期" : "有效"}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -213,18 +244,20 @@ export function OfflineKeysPage() {
 
       <Modal
         open={modalOpen}
-        title={editing ? '編輯離線金鑰' : '新增離線金鑰'}
+        title={editing ? "編輯離線金鑰" : "新增離線金鑰"}
         onClose={() => setModalOpen(false)}
       >
         <div className="space-y-4">
-          {error && (
-            <div className="cf-alert cf-alert--error">{error}</div>
-          )}
+          {error && <div className="cf-alert cf-alert--error">{error}</div>}
           <Select
             label="所屬組織"
             value={organizationId}
             onChange={(e) => setOrganizationId(e.target.value)}
-            options={organizations.map((o) => ({ value: o.id, label: `${o.nameZh} (${o.code})` }))}
+            disabled={!!editing}
+            options={organizations.map((o) => ({
+              value: o.id,
+              label: `${o.name} (${o.code})`,
+            }))}
           />
           <Input
             label="說明"
@@ -233,7 +266,10 @@ export function OfflineKeysPage() {
             placeholder="選填，例如：備援節點用金鑰"
           />
           <div className="space-y-1.5">
-            <label htmlFor="expiresAt" className="block text-sm font-medium text-slate-700">
+            <label
+              htmlFor="expiresAt"
+              className="block text-sm font-medium text-slate-700"
+            >
               到期時間
             </label>
             <input
@@ -252,7 +288,9 @@ export function OfflineKeysPage() {
           {editing && (
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
               <p className="text-xs text-slate-500">AES KEY</p>
-              <p className="mt-1 break-all font-mono text-sm text-slate-700">{editing.aesKey}</p>
+              <p className="mt-1 break-all font-mono text-sm text-slate-700">
+                {editing.aesKey}
+              </p>
             </div>
           )}
           <div className="flex justify-end gap-2 pt-2">
@@ -264,5 +302,5 @@ export function OfflineKeysPage() {
         </div>
       </Modal>
     </>
-  )
+  );
 }

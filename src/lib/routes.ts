@@ -1,3 +1,3 @@
-export function getDefaultHomePath(isAdmin: boolean): string {
-  return isAdmin ? '/organizations' : '/my-services'
+export function getDefaultHomePath(isSystemAdmin: boolean): string {
+  return isSystemAdmin ? '/organizations' : '/my-services'
 }

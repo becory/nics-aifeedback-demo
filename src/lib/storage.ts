@@ -1,15 +1,12 @@
-import type { AppData, User } from '../types'
-import { hashPassword } from './crypto'
+import type { AppData } from '../types'
 import { createDefaultFeedbacks, mergeDefaultFeedbacks } from './defaultFeedbacks'
 import {
   createDefaultOrganizations,
   createDefaultServices,
-  getDefaultAdminOrganizationIds,
   getDefaultFeedbackFallbackOrgId,
 } from './defaultSeedData'
 import { syncFeedbackOrganizations } from './entityLookups'
 import { DEFAULT_RATING_SCORES, normalizeRatingScores } from './ratingScores'
-import { createTotpSecret } from './totp'
 
 const DATA_KEY = 'aifeedback_data'
 
@@ -45,18 +42,6 @@ async function createDefaultData(): Promise<AppData> {
     offlineKeys: [],
     feedbacks: fallbackOrgId ? createDefaultFeedbacks(services, fallbackOrgId) : [],
     ratingScores: DEFAULT_RATING_SCORES,
-    users: [
-      {
-        id: DEFAULT_ADMIN_ID,
-        nameZh: '系統管理員',
-        email: 'admin',
-        passwordHash: await hashPassword('admin'),
-        totpSecret: DEFAULT_ADMIN_TOTP_SECRET,
-        totpEnabled: false,
-        organizationIds: getDefaultAdminOrganizationIds(),
-        isAdmin: true,
-      },
-    ],
   }
 }
 
@@ -69,11 +54,7 @@ export async function initStorage(): Promise<AppData> {
   }
   const data = JSON.parse(raw) as AppData
   let migrated = false
-  const admin = data.users.find((u) => u.id === DEFAULT_ADMIN_ID)
-  if (admin && !admin.totpSecret) {
-    admin.totpSecret = DEFAULT_ADMIN_TOTP_SECRET
-    migrated = true
-  }
+
   for (const service of data.services) {
     if (service.host === undefined) {
       service.host = ''
@@ -112,11 +93,6 @@ export async function initStorage(): Promise<AppData> {
     data.services = createDefaultServices()
     migrated = true
   }
-  const adminUser = data.users.find((u) => u.id === DEFAULT_ADMIN_ID)
-  if (adminUser && adminUser.organizationIds.length === 0 && data.organizations.length > 0) {
-    adminUser.organizationIds = getDefaultAdminOrganizationIds()
-    migrated = true
-  }
   if (seedFeedbacks(data)) migrated = true
   if (migrated) saveData(data)
   return data
@@ -130,33 +106,4 @@ export function getData(): AppData {
 
 export function saveData(data: AppData): void {
   localStorage.setItem(DATA_KEY, JSON.stringify(data))
-}
-
-export function findUserByLogin(login: string): User | undefined {
-  const data = getData()
-  const normalized = login.trim().toLowerCase()
-  return data.users.find(
-    (u) =>
-      u.email.toLowerCase() === normalized ||
-      u.email.split('@')[0].toLowerCase() === normalized,
-  )
-}
-
-export function updateUser(userId: string, patch: Partial<User>): void {
-  const data = getData()
-  const idx = data.users.findIndex((u) => u.id === userId)
-  if (idx === -1) return
-  data.users[idx] = { ...data.users[idx], ...patch }
-  saveData(data)
-}
-
-export function resetUserTotp(userId: string): void {
-  const data = getData()
-  const user = data.users.find((u) => u.id === userId)
-  if (!user) return
-
-  user.totpEnabled = false
-  user.totpSecret =
-    userId === DEFAULT_ADMIN_ID ? DEFAULT_ADMIN_TOTP_SECRET : createTotpSecret()
-  saveData(data)
 }
