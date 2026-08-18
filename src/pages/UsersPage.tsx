@@ -1,175 +1,218 @@
-import { useState } from 'react'
-import type { User } from '../types'
-import { hashPassword } from '../lib/crypto'
-import { getData, resetUserTotp, saveData, updateUser } from '../lib/storage'
-import { createTotpSecret } from '../lib/totp'
-import { Modal } from '../components/Modal'
-import { Button, CheckboxGroup, EmptyState, Input, PageHeader } from '../components/ui'
+import { useEffect, useState } from "react";
+import type { CreateUser, Organization, User } from "../types";
+import { getData, resetUserTotp, saveData } from "../lib/storage";
+import { Modal } from "../components/Modal";
+import {
+  Button,
+  CheckboxGroup,
+  EmptyState,
+  Input,
+  PageHeader,
+} from "../components/ui";
+import {
+  changeUserPassword,
+  createUser,
+  getOrganizations,
+  getUserById,
+  getUsers,
+  updateUser,
+} from "../api";
+import { getApiErrorMessage } from "../api/api";
 
 function generateId() {
-  return crypto.randomUUID()
+  return crypto.randomUUID();
 }
 
 export function UsersPage() {
-  const [items, setItems] = useState(() => getData().users)
-  const [organizations, setOrganizations] = useState(() => getData().organizations)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
-  const [passwordTarget, setPasswordTarget] = useState<User | null>(null)
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordError, setPasswordError] = useState('')
-  const [editing, setEditing] = useState<User | null>(null)
-  const [nameZh, setNameZh] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [organizationIds, setOrganizationIds] = useState<string[]>([])
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [error, setError] = useState('')
+  const [items, setItems] = useState<User[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [editing, setEditing] = useState<User | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [organizationIds, setOrganizationIds] = useState<string[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [mfaExempt, setMfaExempt] = useState(false);
+  const [error, setError] = useState("");
 
-  const refresh = () => {
-    const data = getData()
-    setItems(data.users)
-    setOrganizations(data.organizations)
-  }
+  const refresh = async () => {
+    const users = await getUsers();
+    const orgs = await getOrganizations();
+    console.log(
+      "Fetched users:",
+      users.data,
+      "Fetched organizations:",
+      orgs.data,
+    );
+    setItems(users.data.data);
+    setOrganizations(orgs.data.data);
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
 
   const getOrgNames = (ids: string[]) =>
     ids
-      .map((id) => organizations.find((o) => o.id === id)?.nameZh)
+      .map((id) => organizations.find((o) => o.id === id)?.name)
       .filter(Boolean)
-      .join('、') || '—'
+      .join("、") || "—";
 
   const openCreate = () => {
-    setEditing(null)
-    setNameZh('')
-    setEmail('')
-    setPassword('')
-    setOrganizationIds([])
-    setIsAdmin(false)
-    setError('')
-    setModalOpen(true)
-  }
+    setEditing(null);
+    setName("");
+    setEmail("");
+    setPassword("");
+    setOrganizationIds([]);
+    setIsAdmin(false);
+    setError("");
+    setModalOpen(true);
+    setMfaExempt(false);
+  };
 
-  const openEdit = (user: User) => {
-    setEditing(user)
-    setNameZh(user.nameZh)
-    setEmail(user.email)
-    setOrganizationIds([...user.organizationIds])
-    setIsAdmin(user.isAdmin)
-    setError('')
-    setModalOpen(true)
-  }
+  const openEdit = async (user: User) => {
+    try {
+      const getUser = await getUserById(user.id);
+      console.log("Fetched user:", getUser.data);
+      if (!getUser.data) {
+        alert("使用者不存在");
+        return;
+      }
+      setEditing(getUser.data);
+      setName(getUser.data.name);
+      setEmail(getUser.data.email);
+      setOrganizationIds([...getUser.data.organizationIds]);
+      setIsAdmin(getUser.data.isSystemAdmin);
+      setError("");
+      setModalOpen(true);
+      setMfaExempt(getUser.data.mfaExempt);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      const detail = getApiErrorMessage(error);
+      alert(`取得使用者資料時發生錯誤${detail ? `：${detail}` : ""}`);
+      return;
+    }
+  };
 
   const openChangePassword = (user: User) => {
-    setPasswordTarget(user)
-    setNewPassword('')
-    setConfirmPassword('')
-    setPasswordError('')
-    setPasswordModalOpen(true)
-  }
+    setPasswordTarget(user);
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordError("");
+    setPasswordModalOpen(true);
+  };
 
   const handleSave = async () => {
-    if (!nameZh.trim()) {
-      setError('請輸入中文名稱')
-      return
+    if (!name.trim()) {
+      setError("請輸入中文名稱");
+      return;
     }
     if (!email.trim()) {
-      setError('請輸入信箱')
-      return
+      setError("請輸入信箱");
+      return;
     }
     if (!editing && !password) {
-      setError('請輸入密碼')
-      return
+      setError("請輸入密碼");
+      return;
     }
 
-    const data = getData()
-    const normalizedEmail = email.trim().toLowerCase()
-    const duplicate = data.users.find(
-      (u) => u.email.toLowerCase() === normalizedEmail && u.id !== editing?.id,
-    )
-    if (duplicate) {
-      setError('信箱已存在')
-      return
-    }
-
-    if (editing) {
-      const patch: Partial<User> = {
-        nameZh: nameZh.trim(),
-        email: normalizedEmail,
-        organizationIds,
-        isAdmin,
+    const normalizedEmail = email.trim().toLowerCase();
+    try {
+      if (editing) {
+        const updateUserData: Partial<User> = {
+          name: name.trim(),
+          email: normalizedEmail,
+          organizationIds,
+          isSystemAdmin: isAdmin,
+          mfaExempt: mfaExempt,
+        };
+        await updateUser(editing.id, updateUserData);
+      } else {
+        const newUser: CreateUser = {
+          id: generateId(),
+          name: name.trim(),
+          email: normalizedEmail,
+          initialPassword: password,
+          organizationIds,
+          isSystemAdmin: isAdmin,
+          mfaExempt: mfaExempt,
+        };
+        await createUser(newUser);
       }
-
-      data.users = data.users.map((u) =>
-        u.id === editing.id ? { ...u, ...patch } : u,
-      )
-    } else {
-      data.users.push({
-        id: generateId(),
-        nameZh: nameZh.trim(),
-        email: normalizedEmail,
-        passwordHash: await hashPassword(password),
-        organizationIds,
-        isAdmin,
-        totpEnabled: false,
-        totpSecret: createTotpSecret(),
-      })
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      setError(
+        `${editing ? "更新" : "新增"}使用者時發生錯誤${detail ? `：${detail}` : ""}`,
+      );
+      return;
     }
 
-    saveData(data)
-    refresh()
-    setModalOpen(false)
-  }
+    refresh();
+    setModalOpen(false);
+  };
 
   const handleChangePassword = async () => {
-    if (!passwordTarget) return
+    if (!passwordTarget) return;
 
-    setPasswordError('')
+    setPasswordError("");
     if (!newPassword) {
-      setPasswordError('請輸入新密碼')
-      return
+      setPasswordError("請輸入新密碼");
+      return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError('新密碼與確認密碼不一致')
-      return
+      setPasswordError("新密碼與確認密碼不一致");
+      return;
     }
 
-    updateUser(passwordTarget.id, { passwordHash: await hashPassword(newPassword) })
-    setPasswordModalOpen(false)
-    setPasswordTarget(null)
-  }
+    try {
+      await changeUserPassword(passwordTarget.id, newPassword);
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      setPasswordError(`更新密碼時發生錯誤${detail ? `：${detail}` : ""}`);
+      return;
+    }
+
+    setPasswordModalOpen(false);
+    setPasswordTarget(null);
+  };
 
   const handleReset2FA = (user: User) => {
     if (
       !confirm(
-        `確定要重設「${user.nameZh}」的二階段驗證？該使用者下次登入時需重新綁定。`,
+        `確定要重設「${user.name}」的二階段驗證？該使用者下次登入時需重新綁定。`,
       )
     ) {
-      return
+      return;
     }
 
-    resetUserTotp(user.id)
-    refresh()
-  }
+    resetUserTotp(user.id);
+    refresh();
+  };
 
   const handleDelete = (user: User) => {
-    const data = getData()
-    const adminCount = data.users.filter((u) => u.isAdmin).length
-    if (user.isAdmin && adminCount <= 1) {
-      alert('系統至少需要一位管理員，無法刪除')
-      return
+    const data = getData();
+    const adminCount = data.users.filter((u) => u.isSystemAdmin).length;
+    if (user.isSystemAdmin && adminCount <= 1) {
+      alert("系統至少需要一位管理員，無法刪除");
+      return;
     }
-    if (!confirm(`確定要刪除使用者「${user.nameZh}」？`)) return
+    if (!confirm(`確定要刪除使用者「${user.name}」？`)) return;
 
-    data.users = data.users.filter((u) => u.id !== user.id)
-    saveData(data)
-    refresh()
-  }
+    data.users = data.users.filter((u) => u.id !== user.id);
+    saveData(data);
+    refresh();
+  };
 
   const orgOptions = organizations.map((o) => ({
     value: o.id,
-    label: `${o.nameZh} (${o.code})`,
-  }))
+    label: `${o.name} (${o.code})`,
+  }));
 
   return (
     <>
@@ -186,36 +229,50 @@ export function UsersPage() {
           <table className="cf-table">
             <thead>
               <tr>
-                <th className="px-4 py-3 font-medium text-slate-600">中文名稱</th>
+                <th className="px-4 py-3 font-medium text-slate-600">
+                  中文名稱
+                </th>
                 <th className="px-4 py-3 font-medium text-slate-600">信箱</th>
                 <th className="px-4 py-3 font-medium text-slate-600">組織</th>
-                <th className="px-4 py-3 font-medium text-slate-600">二階段驗證</th>
+                <th className="px-4 py-3 font-medium text-slate-600">
+                  二階段驗證
+                </th>
                 <th className="px-4 py-3 font-medium text-slate-600">管理員</th>
-                <th className="px-4 py-3 font-medium text-slate-600 text-right">操作</th>
+                <th className="px-4 py-3 font-medium text-slate-600 text-right">
+                  操作
+                </th>
               </tr>
             </thead>
             <tbody>
               {items.map((user) => (
                 <tr key={user.id}>
-                  <td className="px-4 py-3 font-medium text-slate-900">{user.nameZh}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900">
+                    {user.name}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{user.email}</td>
-                  <td className="px-4 py-3 text-slate-600">{getOrgNames(user.organizationIds)}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {getOrgNames(user.organizationIds)}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                        user.totpEnabled
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-amber-100 text-amber-700'
+                        user.mfaExempt
+                          ? "bg-blue-100 text-blue-700"
+                          : user.twoFactorEnabled
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
                       }`}
                     >
-                      {user.totpEnabled ? '已綁定' : '待綁定'}
+                      {user.mfaExempt
+                        ? "免綁"
+                        : user.twoFactorEnabled
+                          ? "已綁定"
+                          : "待綁定"}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {user.isAdmin ? (
-                      <span className="cf-badge cf-badge--blue">
-                        是
-                      </span>
+                    {user.isSystemAdmin ? (
+                      <span className="cf-badge cf-badge--blue">是</span>
                     ) : (
                       <span className="text-slate-400">否</span>
                     )}
@@ -261,16 +318,18 @@ export function UsersPage() {
 
       <Modal
         open={modalOpen}
-        title={editing ? '編輯使用者' : '新增使用者'}
+        title={editing ? "編輯使用者" : "新增使用者"}
         onClose={() => setModalOpen(false)}
         wide
       >
         <div className="space-y-4">
-          {error && (
-            <div className="cf-alert cf-alert--error">{error}</div>
-          )}
+          {error && <div className="cf-alert cf-alert--error">{error}</div>}
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="中文名稱" value={nameZh} onChange={(e) => setNameZh(e.target.value)} />
+            <Input
+              label="中文名稱"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
             <Input
               label="信箱"
               type="email"
@@ -301,6 +360,15 @@ export function UsersPage() {
             />
             管理員
           </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={mfaExempt}
+              onChange={(e) => setMfaExempt(e.target.checked)}
+              className="h-4 w-4 rounded border-[#d9d9d9] text-[#0055dc] focus:ring-[#0055dc]"
+            />
+            免用二階段驗證
+          </label>
 
           {!editing && (
             <p className="rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-500">
@@ -313,14 +381,14 @@ export function UsersPage() {
               <p className="text-sm text-slate-700">
                 二階段驗證狀態：
                 <span className="ml-1 font-medium">
-                  {editing.totpEnabled ? '已綁定' : '待綁定'}
+                  {editing.totpEnabled ? "已綁定" : "待綁定"}
                 </span>
               </p>
               <button
                 type="button"
                 onClick={() => {
-                  openChangePassword(editing)
-                  setModalOpen(false)
+                  openChangePassword(editing);
+                  setModalOpen(false);
                 }}
                 className="cf-link mt-2 text-sm"
               >
@@ -330,8 +398,8 @@ export function UsersPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    handleReset2FA(editing)
-                    setModalOpen(false)
+                    handleReset2FA(editing);
+                    setModalOpen(false);
                   }}
                   className="mt-2 ml-4 text-sm text-amber-600 hover:text-amber-800"
                 >
@@ -352,7 +420,7 @@ export function UsersPage() {
 
       <Modal
         open={passwordModalOpen}
-        title={`修改密碼 — ${passwordTarget?.nameZh ?? ''}`}
+        title={`修改密碼 — ${passwordTarget?.name ?? ""}`}
         onClose={() => setPasswordModalOpen(false)}
       >
         <div className="space-y-4">
@@ -374,7 +442,10 @@ export function UsersPage() {
             autoComplete="new-password"
           />
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => setPasswordModalOpen(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setPasswordModalOpen(false)}
+            >
               取消
             </Button>
             <Button onClick={handleChangePassword}>更新密碼</Button>
@@ -382,5 +453,5 @@ export function UsersPage() {
         </div>
       </Modal>
     </>
-  )
+  );
 }

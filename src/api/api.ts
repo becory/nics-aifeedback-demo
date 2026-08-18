@@ -25,6 +25,13 @@ export function setOnUnauthorized(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
+export function getApiErrorMessage(error: unknown): string | undefined {
+  if (axios.isAxiosError(error) && typeof error.response?.data === "string") {
+    return error.response.data;
+  }
+  return undefined;
+}
+
 const NO_REFRESH_RETRY_PATHS = ["/auth/login", "/auth/2fa", "/auth/refresh"];
 
 instance.interceptors.request.use((config) => {
