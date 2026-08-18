@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Feedback } from "../types";
+import type {
+  AppData,
+  Feedback,
+  FeedbackRating,
+  Organization,
+  ScoreConfig,
+} from "../types";
 import { useAuth } from "../lib/auth";
 import {
   applyDimensionFilters,
@@ -21,8 +27,9 @@ import {
   countByOrganizationViaService,
   countByServiceId,
 } from "../lib/entityLookups";
-import { getData, saveData } from "../lib/storage";
-import { getScoreMap, getRatingLabelMap } from "../lib/ratingScores";
+import { getData, initStorage, saveData } from "../lib/storage";
+import { DEFAULT_RATING_SCORES } from "../lib/ratingScores";
+import { getOrganizations, getScoreConfigs } from "../api";
 import { ActivityLogTable } from "../components/ActivityLogTable";
 import { FeedbackImportModal } from "../components/FeedbackImportModal";
 import {
@@ -33,7 +40,16 @@ import {
 } from "../components/feedbackCharts";
 import { EmptyState, PageHeader, Button } from "../components/ui";
 
-const RATING_KEYS = ["good", "normal", "bad"] as const;
+const RATING_KEYS: FeedbackRating[] = ["good", "normal", "bad"];
+
+const EMPTY_DATA: AppData = {
+  organizations: [],
+  services: [],
+  users: [],
+  offlineKeys: [],
+  feedbacks: [],
+  ratingScores: DEFAULT_RATING_SCORES,
+};
 
 function toStatsItems(
   rows: { label: string; count: number }[],
@@ -47,8 +63,16 @@ function toStatsItems(
 
 export function FeedbackOverviewPage() {
   const { user } = useAuth();
+  const [ready, setReady] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
-  const data = useMemo(() => getData(), [dataVersion]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [ratingConfigs, setRatingConfigs] = useState<
+    Partial<Record<FeedbackRating, ScoreConfig>>
+  >({});
+  const data = useMemo(
+    () => (ready ? getData() : EMPTY_DATA),
+    [ready, dataVersion],
+  );
   const [timePreset, setTimePreset] = useState<TimePreset>(DEFAULT_TIME_PRESET);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -58,9 +82,33 @@ export function FeedbackOverviewPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [importNotice, setImportNotice] = useState("");
 
+  useEffect(() => {
+    initStorage().then(() => setReady(true));
+  }, []);
+
+  useEffect(() => {
+    getOrganizations().then((res) => setOrganizations(res.data.data));
+    getScoreConfigs().then((res) => {
+      const sorted = [...res.data.data].sort(
+        (a, b) => b.scoreValue - a.scoreValue,
+      );
+      const next: Partial<Record<FeedbackRating, ScoreConfig>> = {};
+      RATING_KEYS.forEach((key, index) => {
+        if (sorted[index]) next[key] = sorted[index];
+      });
+      setRatingConfigs(next);
+    });
+  }, []);
+
   const allFeedbacks = useMemo(
-    () => getUserFeedbacks(data.feedbacks, user?.orgs ?? []),
-    [data.feedbacks, user?.orgs],
+    () =>
+      getUserFeedbacks(
+        data.feedbacks,
+        user?.organizationIds
+          .map((id) => organizations?.find((org) => org.id === id)?.code)
+          .filter((code): code is string => code !== undefined) ?? [],
+      ),
+    [data.feedbacks, user?.organizationIds, organizations],
   );
 
   const timeRange = useMemo(
@@ -148,13 +196,21 @@ export function FeedbackOverviewPage() {
     setDimensionFilters([]);
   };
 
-  const scoreMap = useMemo(
-    () => getScoreMap(data.ratingScores),
-    [data.ratingScores],
+  const scoreMap = useMemo<Record<FeedbackRating, number>>(
+    () => ({
+      good: ratingConfigs.good?.scoreValue ?? 0,
+      normal: ratingConfigs.normal?.scoreValue ?? 0,
+      bad: ratingConfigs.bad?.scoreValue ?? 0,
+    }),
+    [ratingConfigs],
   );
-  const ratingLabels = useMemo(
-    () => getRatingLabelMap(data.ratingScores),
-    [data.ratingScores],
+  const ratingLabels = useMemo<Record<FeedbackRating, string>>(
+    () => ({
+      good: ratingConfigs.good?.name ?? "good",
+      normal: ratingConfigs.normal?.name ?? "normal",
+      bad: ratingConfigs.bad?.name ?? "bad",
+    }),
+    [ratingConfigs],
   );
 
   const dailyTraffic = useMemo(
@@ -196,13 +252,8 @@ export function FeedbackOverviewPage() {
     [filtered, data.services],
   );
   const organizationItems = useMemo(
-    () =>
-      countByOrganizationViaService(
-        filtered,
-        data.services,
-        data.organizations,
-      ),
-    [filtered, data.services, data.organizations],
+    () => countByOrganizationViaService(filtered, data.services, organizations),
+    [filtered, data.services, organizations],
   );
   const ratingItems = useMemo<TopStatsItem[]>(
     () =>
@@ -231,7 +282,11 @@ export function FeedbackOverviewPage() {
         title="回饋資料總覽"
         description="檢視回饋趨勢、平均分數、來源分布與活動記錄"
         action={
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
+          <Button
+            variant="secondary"
+            onClick={() => setImportOpen(true)}
+            disabled={!ready}
+          >
             手動匯入資料
           </Button>
         }
@@ -245,12 +300,12 @@ export function FeedbackOverviewPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         services={data.services}
-        organizations={data.organizations}
+        organizations={organizations}
         existing={data.feedbacks}
         onImported={handleImported}
       />
 
-      {!user?.orgs.length ? (
+      {!user?.organizationIds.length ? (
         <EmptyState message="您尚未被指派至任何組織，無法檢視回饋資料總覽" />
       ) : allFeedbacks.length === 0 ? (
         <EmptyState message="目前尚無回饋紀錄" />
@@ -371,7 +426,7 @@ export function FeedbackOverviewPage() {
               <ActivityLogTable
                 feedbacks={filtered}
                 services={data.services}
-                organizations={data.organizations}
+                organizations={organizations}
                 ratingLabels={ratingLabels}
               />
             </div>
