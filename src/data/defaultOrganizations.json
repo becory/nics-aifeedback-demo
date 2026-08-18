@@ -1,5 +1,5 @@
 [
-  { "id": "org-nics", "nameZh": "資安院", "code": "NICS" },
-  { "id": "org-moda", "nameZh": "數發部", "code": "MODA" },
-  { "id": "org-acs", "nameZh": "資安署", "code": "ACS" }
+  { "id": "NICS", "nameZh": "資安院", "code": "NICS" },
+  { "id": "MODA", "nameZh": "數發部", "code": "MODA" },
+  { "id": "ACS", "nameZh": "資安署", "code": "ACS" }
 ]
