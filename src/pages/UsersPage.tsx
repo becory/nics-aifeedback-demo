@@ -44,13 +44,7 @@ export function UsersPage() {
 
   const refresh = async () => {
     const users = await getUsers();
-    const orgs = await getOrganizations();
-    console.log(
-      "Fetched users:",
-      users.data,
-      "Fetched organizations:",
-      orgs.data,
-    );
+    const orgs = await getOrganizations({ IsActive: true });
     setItems(users.data.data);
     setOrganizations(orgs.data.data);
   };
