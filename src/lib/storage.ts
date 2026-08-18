@@ -9,7 +9,6 @@ import {
 } from './defaultSeedData'
 import { syncFeedbackOrganizations } from './entityLookups'
 import { DEFAULT_RATING_SCORES, normalizeRatingScores } from './ratingScores'
-import { createTotpSecret } from './totp'
 
 const DATA_KEY = 'aifeedback_data'
 
@@ -109,11 +108,6 @@ export async function initStorage(): Promise<AppData> {
     data.services = createDefaultServices()
     migrated = true
   }
-  const adminUser = data.users.find((u) => u.id === DEFAULT_ADMIN_ID)
-  if (adminUser && adminUser.organizationIds.length === 0 && data.organizations.length > 0) {
-    adminUser.organizationIds = getDefaultAdminOrganizationIds()
-    migrated = true
-  }
   if (seedFeedbacks(data)) migrated = true
   if (migrated) saveData(data)
   return data
@@ -153,7 +147,6 @@ export function resetUserTotp(userId: string): void {
   if (!user) return
 
   user.totpEnabled = false
-  user.totpSecret =
-    userId === DEFAULT_ADMIN_ID ? DEFAULT_ADMIN_TOTP_SECRET : createTotpSecret()
+  user.totpSecret =true
   saveData(data)
 }
