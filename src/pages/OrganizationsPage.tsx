@@ -19,7 +19,7 @@ export function OrganizationsPage() {
   const [error, setError] = useState("");
 
   const refresh = async () => {
-    const orgs = await getOrganizations();
+    const orgs = await getOrganizations({ IsActive: true });
     setItems(orgs.data.data);
   };
 

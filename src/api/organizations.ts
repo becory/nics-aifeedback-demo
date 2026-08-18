@@ -1,7 +1,7 @@
 import type {CreateOrganizationRequest, DataResponse, Organization, UpdateOrganizationRequest } from "../types";
 import { instance } from "./api";
 
-export const getOrganizations = () => instance.get<DataResponse<Organization[]>>('/organizations')
+export const getOrganizations = (filter?: {IsActive?: boolean}) => instance.get<DataResponse<Organization[]>>('/organizations', { params: filter })
 
 export const getOrganizationById = (id: string) => instance.get<Organization>(`/organizations/${id}`)
 
