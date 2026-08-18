@@ -15,3 +15,10 @@ export const post2FA = (pendingToken: string, code: string) => instance.post<Two
 export const getUserInfo = () => instance.get('/auth/me')
 
 export const postRefresh = () => instance.post<TwoFactorAuthResponse>('/auth/refresh', {}, { withCredentials: true })
+
+export const postLogout = () => instance.post<null>('/auth/logout')
+
+export const postChangePassword = (currentPassword: string, newPassword: string) => instance.post<null>('/auth/change-password', {
+  "currentPassword": currentPassword,
+  "newPassword": newPassword
+})

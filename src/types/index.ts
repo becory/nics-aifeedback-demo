@@ -1,8 +1,16 @@
 export interface Organization {
-  id: string
-  nameZh: string
+    id: string
+    name: string
+    code: string
+    isActive: boolean
+}
+
+export interface CreateOrganizationRequest {
+  name: string
   code: string
 }
+
+export type UpdateOrganizationRequest = CreateOrganizationRequest
 
 export interface Service {
   id: string
@@ -12,12 +20,26 @@ export interface Service {
   host: string
 }
 
+export interface CreateServiceRequest {
+  orgId: string
+  name: string
+  code: string
+  receivingDomain: string
+}
+
+export type UpdateServiceRequest = CreateServiceRequest
+
 export interface User {
   id: string
   name: string
   email: string
-  orgs: string[]
+  organizationIds: string[]
   isSystemAdmin: boolean
+  mfaExempt: boolean
+}
+
+export interface CreateUser extends User {
+  initialPassword: string
 }
 
 export interface OfflineKey {
@@ -27,6 +49,30 @@ export interface OfflineKey {
   aesKey: string
   expiresAt: string
   createdAt: string
+}
+
+export interface CreateOfflineKeyRequest {
+  orgId: string
+  description: string
+  expiresAt: string
+}
+
+export interface UpdateOfflineKeyRequest {
+  description: string
+  expiresAt: string
+}
+
+export interface ScoreConfig {
+  id: string
+  name: string
+  description: string
+  scoreValue: number
+}
+
+export interface UpdateScoreConfigRequest {
+  name: string
+  description: string
+  scoreValue: number
 }
 
 export type FeedbackRating = 'good' | 'normal' | 'bad'
@@ -90,4 +136,10 @@ export interface Enable2FAResponse {
 export interface TwoFactorAuthResponse {
   accessToken: string
   expiresIn: number
+}
+
+export interface DataResponse<T> {
+  data: T
+  message?: string
+  error?: string
 }
