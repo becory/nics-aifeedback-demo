@@ -36,6 +36,7 @@ export interface User {
   organizationIds: string[]
   isSystemAdmin: boolean
   mfaExempt: boolean
+  twoFactorEnabled?: boolean
 }
 
 export interface CreateUser extends User {
@@ -107,7 +108,6 @@ export interface Feedback {
 export interface AppData {
   organizations: Organization[]
   services: Service[]
-  users: User[]
   offlineKeys: OfflineKey[]
   feedbacks: Feedback[]
   ratingScores: RatingScoresConfig

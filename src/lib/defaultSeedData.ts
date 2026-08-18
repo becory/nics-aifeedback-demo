@@ -3,7 +3,7 @@ import defaultServicesJson from '../data/defaultServices.json'
 import type { Organization, Service } from '../types'
 
 export function createDefaultOrganizations(): Organization[] {
-  return defaultOrganizationsJson as Organization[]
+  return defaultOrganizationsJson as any[]
 }
 
 export function createDefaultServices(): Service[] {

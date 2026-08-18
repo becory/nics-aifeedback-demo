@@ -45,7 +45,6 @@ const RATING_KEYS: FeedbackRating[] = ["good", "normal", "bad"];
 const EMPTY_DATA: AppData = {
   organizations: [],
   services: [],
-  users: [],
   offlineKeys: [],
   feedbacks: [],
   ratingScores: DEFAULT_RATING_SCORES,
