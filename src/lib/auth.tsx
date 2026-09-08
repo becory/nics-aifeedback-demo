@@ -102,7 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { step: "2fa_verify" as const };
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        console.log(error.status);
         console.error(error.response);
         return { error: "帳號或密碼錯誤" };
       }
@@ -127,7 +126,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userInfo.data);
       } catch (error) {
         if (axios.isAxiosError(error)) {
-          console.log(error.status);
           console.error(error.response);
           return "驗證碼錯誤";
         }
@@ -153,7 +151,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userInfo.data);
       } catch (error) {
         if (axios.isAxiosError(error)) {
-          console.log(error.status);
           console.error(error.response);
           return "驗證碼錯誤，請確認已掃描 QR Code";
         }
