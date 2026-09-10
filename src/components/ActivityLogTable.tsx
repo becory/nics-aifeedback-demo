@@ -1,14 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import type { Feedback, FeedbackRating, Organization, Service } from '../types'
-import {
-  buildServiceByCodeMap,
-  formatOrganizationLabel,
-  formatServiceLabel,
-  resolveOrganizationIdFromFeedback,
-} from '../lib/entityLookups'
 import { formatDisplayTime } from '../lib/datetime'
-
-const PAGE_SIZE = 25
 
 type LogColumnKey =
   | 'createdAt'
@@ -36,6 +28,7 @@ const ALL_COLUMNS: { key: LogColumnKey; label: string; defaultVisible: boolean }
 ]
 
 const COLUMN_STORAGE_KEY = 'activity_log_columns'
+const PAGE_SIZE = 25
 
 const ratingBadgeClass: Record<string, string> = {
   good: 'cf-badge cf-badge--good',
@@ -55,6 +48,18 @@ function loadVisibleColumns(): Set<LogColumnKey> {
   }
 }
 
+function rowKey(fb: Feedback): string {
+  return `${fb.sessionId}-${fb.createdAt}`
+}
+
+function formatServiceName(serviceCode: string, services: Service[]): string {
+  return services.find((s) => s.code === serviceCode)?.name ?? '未知'
+}
+
+function formatOrganizationName(organizationId: string, organizations: Organization[]): string {
+  return organizations.find((o) => o.id === organizationId)?.name ?? '未知'
+}
+
 function cellValue(
   fb: Feedback,
   key: LogColumnKey,
@@ -67,7 +72,7 @@ function cellValue(
     case 'feedbackRating':
       return ratingLabels[fb.feedbackRating] ?? fb.feedbackRating
     case 'serviceId':
-      return formatServiceLabel(fb.serviceId, services)
+      return formatServiceName(fb.serviceId, services)
     default:
       return String(fb[key] ?? '—')
   }
@@ -114,7 +119,6 @@ export function ActivityLogTable({
   organizations: Organization[]
   ratingLabels: Record<FeedbackRating, string>
 }) {
-  const serviceByCode = useMemo(() => buildServiceByCodeMap(services), [services])
   const [page, setPage] = useState(1)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showColumnEditor, setShowColumnEditor] = useState(false)
@@ -133,6 +137,11 @@ export function ActivityLogTable({
     setExpandedId(null)
   }, [feedbacks])
 
+  const goToPage = (next: number) => {
+    setPage(Math.min(totalPages, Math.max(1, next)))
+    setExpandedId(null)
+  }
+
   const toggleColumn = (key: LogColumnKey) => {
     setVisibleColumns((prev) => {
       const next = new Set(prev)
@@ -145,11 +154,6 @@ export function ActivityLogTable({
       localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify([...next]))
       return next
     })
-  }
-
-  const goToPage = (next: number) => {
-    setPage(Math.min(totalPages, Math.max(1, next)))
-    setExpandedId(null)
   }
 
   return (
@@ -196,14 +200,15 @@ export function ActivityLogTable({
           </thead>
           <tbody>
             {pageFeedbacks.map((fb) => {
-              const open = expandedId === fb.id
+              const rowId = rowKey(fb)
+              const open = expandedId === rowId
               return (
-                <Fragment key={fb.id}>
+                <Fragment key={rowId}>
                   <tr>
                     <td>
                       <button
                         type="button"
-                        onClick={() => setExpandedId(open ? null : fb.id)}
+                        onClick={() => setExpandedId(open ? null : rowId)}
                         className="rounded p-0.5 hover:bg-[#ebebeb]"
                         aria-label={open ? '收合詳情' : '展開詳情'}
                       >
@@ -239,7 +244,7 @@ export function ActivityLogTable({
                                   : key === 'createdAt'
                                     ? formatDisplayTime(fb.createdAt)
                                     : key === 'serviceId'
-                                      ? formatServiceLabel(fb.serviceId, services)
+                                      ? formatServiceName(fb.serviceId, services)
                                       : String(fb[key] ?? '—')}
                               </dd>
                             </div>
@@ -247,10 +252,7 @@ export function ActivityLogTable({
                           <div className="min-w-0">
                             <dt className="text-[11px] font-medium text-[#8c8c8c]">組織</dt>
                             <dd className="truncate text-[13px] text-[#1d1d1d]">
-                              {formatOrganizationLabel(
-                                resolveOrganizationIdFromFeedback(fb, serviceByCode),
-                                organizations,
-                              )}
+                              {formatOrganizationName(fb.organizationId, organizations)}
                             </dd>
                           </div>
                         </dl>

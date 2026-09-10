@@ -13,6 +13,7 @@ import {
   Button,
   EmptyState,
   Input,
+  LoadingState,
   PageHeader,
   Select,
 } from "../components/ui";
@@ -27,15 +28,26 @@ export function ServicesPage() {
   const [code, setCode] = useState("");
   const [host, setHost] = useState("");
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
-    const [services, orgs] = await Promise.all([
-      getServices(),
-      getOrganizations(),
-    ]);
-    setItems(services.data.data);
-    setOrganizations(orgs.data.data);
-    console.log("organizations", orgs.data.data);
+    setLoading(true);
+    try {
+      const [services, orgs] = await Promise.all([
+        getServices(),
+        getOrganizations(),
+      ]);
+      setItems(services.data.data);
+      setOrganizations(orgs.data.data);
+      setLoadError("");
+      console.log("organizations", orgs.data.data);
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      setLoadError(`載入服務資料時發生錯誤${detail ? `：${detail}` : ""}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -136,7 +148,18 @@ export function ServicesPage() {
         }
       />
 
-      {organizations.length === 0 ? (
+      {loadError && (
+        <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
+          <span>{loadError}</span>
+          <button type="button" onClick={refresh} className="cf-link shrink-0">
+            重試
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <LoadingState />
+      ) : organizations.length === 0 ? (
         <EmptyState message="請先建立組織，才能新增服務" />
       ) : items.length === 0 ? (
         <EmptyState message="尚無服務資料，點擊「新增服務」開始建立" />

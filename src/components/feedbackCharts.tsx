@@ -1,6 +1,13 @@
 import { useState } from 'react'
-import { CHART_COLORS, dateKeyToMs, formatCompactCount, STATS_FIELD_LABELS, TIME_PRESET_LABELS, type StatsFilterField, type DimensionFilter, type TimePreset } from '../lib/feedbackStats'
+import { CHART_COLORS, dateKeyToMs, formatCompactCount, STATS_FIELD_LABELS, type StatsFilterField, type DimensionFilter } from '../lib/feedbackStats'
+import type { FeedbackOverviewInterval } from '../api/feedback'
 import { Modal } from './Modal'
+
+const INTERVAL_LABELS: Record<FeedbackOverviewInterval, string> = {
+  day: '每日',
+  week: '每週',
+  month: '每月',
+}
 
 const STATS_PREVIEW_LIMIT = 5
 
@@ -72,29 +79,29 @@ export function FilterChip({
 
 export function TrafficChartSection({
   points,
-  timePreset,
-  onTimePresetChange,
+  interval,
+  onIntervalChange,
   avgScore,
   total,
 }: {
   points: { date: string; label: string; count: number }[]
-  timePreset: TimePreset
-  onTimePresetChange: (preset: TimePreset) => void
-  avgScore: number
+  interval: FeedbackOverviewInterval
+  onIntervalChange: (interval: FeedbackOverviewInterval) => void
+  avgScore: number | null
   total: number
 }) {
   return (
     <div className="cf-traffic-layout">
       <div className="cf-traffic-toolbar">
         <select
-          value={timePreset}
-          onChange={(e) => onTimePresetChange(e.target.value as TimePreset)}
+          value={interval}
+          onChange={(e) => onIntervalChange(e.target.value as FeedbackOverviewInterval)}
           className="cf-select"
-          aria-label="時間範圍"
+          aria-label="時間區間"
         >
-          {(Object.keys(TIME_PRESET_LABELS) as TimePreset[]).map((preset) => (
-            <option key={preset} value={preset}>
-              {TIME_PRESET_LABELS[preset]}
+          {(Object.keys(INTERVAL_LABELS) as FeedbackOverviewInterval[]).map((iv) => (
+            <option key={iv} value={iv}>
+              {INTERVAL_LABELS[iv]}
             </option>
           ))}
         </select>
@@ -107,7 +114,7 @@ export function TrafficChartSection({
           </div>
           <div className="cf-metric-card">
             <p className="cf-metric-card__label">平均分數</p>
-            <p className="cf-metric-card__value">{total > 0 ? avgScore.toFixed(2) : '—'}</p>
+            <p className="cf-metric-card__value">{avgScore != null ? avgScore.toFixed(2) : '—'}</p>
           </div>
         </div>
         <div className="cf-chart-main">
@@ -127,19 +134,19 @@ function ExpandIcon({ className = 'h-4 w-4' }: { className?: string }) {
   )
 }
 
-function FilterForIcon({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path d="M2.75 4.5h14.5l-5.2 6.3v4.2l-4.1 2.1v-6.3L2.75 4.5Z" />
-    </svg>
-  )
-}
-
 function FilterOutIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
       <circle cx="10" cy="10" r="7.25" />
       <path d="M6.5 6.5l7 7" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function FilterForIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M2.75 4.5h14.5l-5.2 6.3v4.2l-4.1 2.1v-6.3L2.75 4.5Z" />
     </svg>
   )
 }
@@ -161,8 +168,8 @@ function StatsItemList({
   items: TopStatsItem[]
   field: StatsFilterField
   max: number
-  onInclude: (field: StatsFilterField, value: string, label: string) => void
-  onExclude: (field: StatsFilterField, value: string, label: string) => void
+  onInclude?: (field: StatsFilterField, value: string, label: string) => void
+  onExclude?: (field: StatsFilterField, value: string, label: string) => void
   className?: string
 }) {
   return (
@@ -181,26 +188,32 @@ function StatsItemList({
                   <div className="cf-stat-card__bar-fill" style={{ width: `${fillPct}%` }} />
                 </div>
               </div>
-              <div className="cf-stat-card__aside-actions">
-                <button
-                  type="button"
-                  title="僅顯示此項目"
-                  aria-label={`篩選 ${item.label}`}
-                  onClick={() => onInclude(field, item.value, item.label)}
-                  className="cf-action-btn"
-                >
-                  <FilterForIcon className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  title="排除此項目"
-                  aria-label={`排除 ${item.label}`}
-                  onClick={() => onExclude(field, item.value, item.label)}
-                  className="cf-action-btn cf-action-btn--danger"
-                >
-                  <FilterOutIcon className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              {(onInclude || onExclude) && (
+                <div className="cf-stat-card__aside-actions">
+                  {onInclude && (
+                    <button
+                      type="button"
+                      title="僅顯示此項目"
+                      aria-label={`篩選 ${item.label}`}
+                      onClick={() => onInclude(field, item.value, item.label)}
+                      className="cf-action-btn"
+                    >
+                      <FilterForIcon className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {onExclude && (
+                    <button
+                      type="button"
+                      title="排除此項目"
+                      aria-label={`排除 ${item.label}`}
+                      onClick={() => onExclude(field, item.value, item.label)}
+                      className="cf-action-btn cf-action-btn--danger"
+                    >
+                      <FilterOutIcon className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </li>
         )
@@ -221,8 +234,8 @@ export function TopStatsPanel({
   title: string
   field: StatsFilterField
   allItems: TopStatsItem[]
-  onInclude: (field: StatsFilterField, value: string, label: string) => void
-  onExclude: (field: StatsFilterField, value: string, label: string) => void
+  onInclude?: (field: StatsFilterField, value: string, label: string) => void
+  onExclude?: (field: StatsFilterField, value: string, label: string) => void
   emptyMessage?: string
   previewLimit?: number
 }) {
@@ -268,14 +281,20 @@ export function TopStatsPanel({
             items={allItems}
             field={field}
             max={allMax}
-            onInclude={(f, value, label) => {
-              onInclude(f, value, label)
-              setExpanded(false)
-            }}
-            onExclude={(f, value, label) => {
-              onExclude(f, value, label)
-              setExpanded(false)
-            }}
+            onInclude={
+              onInclude &&
+              ((f, value, label) => {
+                onInclude(f, value, label)
+                setExpanded(false)
+              })
+            }
+            onExclude={
+              onExclude &&
+              ((f, value, label) => {
+                onExclude(f, value, label)
+                setExpanded(false)
+              })
+            }
             className="py-0.5"
           />
         </div>

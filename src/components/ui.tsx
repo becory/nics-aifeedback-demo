@@ -30,6 +30,14 @@ export function EmptyState({ message }: EmptyStateProps) {
   )
 }
 
+export function LoadingState() {
+  return (
+    <div className="flex justify-center py-16">
+      <div className="cf-spinner" />
+    </div>
+  )
+}
+
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger'
 }

@@ -14,6 +14,7 @@ import {
   Button,
   EmptyState,
   Input,
+  LoadingState,
   PageHeader,
   Select,
 } from "../components/ui";
@@ -47,14 +48,25 @@ export function OfflineKeysPage() {
   const [description, setDescription] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
-    const [keys, orgs] = await Promise.all([
-      getOfflineKeys(),
-      getOrganizations(),
-    ]);
-    setItems(keys.data.data);
-    setOrganizations(orgs.data.data);
+    setLoading(true);
+    try {
+      const [keys, orgs] = await Promise.all([
+        getOfflineKeys(),
+        getOrganizations(),
+      ]);
+      setItems(keys.data.data);
+      setOrganizations(orgs.data.data);
+      setLoadError("");
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      setLoadError(`載入離線金鑰資料時發生錯誤${detail ? `：${detail}` : ""}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -157,7 +169,18 @@ export function OfflineKeysPage() {
         }
       />
 
-      {organizations.length === 0 ? (
+      {loadError && (
+        <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
+          <span>{loadError}</span>
+          <button type="button" onClick={refresh} className="cf-link shrink-0">
+            重試
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <LoadingState />
+      ) : organizations.length === 0 ? (
         <EmptyState message="請先建立組織，才能新增離線金鑰" />
       ) : items.length === 0 ? (
         <EmptyState message="尚無離線金鑰，點擊「新增離線金鑰」開始建立" />

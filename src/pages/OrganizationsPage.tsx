@@ -8,7 +8,13 @@ import {
 } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import { Modal } from "../components/Modal";
-import { Button, EmptyState, Input, PageHeader } from "../components/ui";
+import {
+  Button,
+  EmptyState,
+  Input,
+  LoadingState,
+  PageHeader,
+} from "../components/ui";
 
 export function OrganizationsPage() {
   const [items, setItems] = useState<Organization[]>([]);
@@ -17,10 +23,21 @@ export function OrganizationsPage() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
-    const orgs = await getOrganizations({ IsActive: true });
-    setItems(orgs.data.data);
+    setLoading(true);
+    try {
+      const orgs = await getOrganizations({ IsActive: true });
+      setItems(orgs.data.data);
+      setLoadError("");
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      setLoadError(`載入組織資料時發生錯誤${detail ? `：${detail}` : ""}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -97,7 +114,18 @@ export function OrganizationsPage() {
         action={<Button onClick={openCreate}>新增組織</Button>}
       />
 
-      {items.length === 0 ? (
+      {loadError && (
+        <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
+          <span>{loadError}</span>
+          <button type="button" onClick={refresh} className="cf-link shrink-0">
+            重試
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <LoadingState />
+      ) : items.length === 0 ? (
         <EmptyState message="尚無組織資料，點擊「新增組織」開始建立" />
       ) : (
         <div className="cf-card">

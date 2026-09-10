@@ -56,6 +56,7 @@ export function Verify2FAPage() {
             className="cf-input cf-input--center text-2xl tracking-[0.5em]"
             placeholder="000000"
             autoFocus
+            autoComplete="one-time-code"
             required
           />
         </div>

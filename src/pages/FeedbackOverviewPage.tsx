@@ -1,92 +1,137 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type {
-  AppData,
-  Feedback,
-  FeedbackRating,
-  Organization,
-  ScoreConfig,
-} from "../types";
-import { useAuth } from "../lib/auth";
+import { useEffect, useMemo, useState } from "react";
+import type { Feedback, FeedbackRating, Organization, ScoreConfig, Service } from "../types";
 import {
-  applyDimensionFilters,
-  countByField,
-  filterFeedbacksByTime,
-  DEFAULT_TIME_PRESET,
-  getAverageScore,
-  getFeedbackTimeRange,
-  getRatingCounts,
-  getTimeRangeForPreset,
-  getUserFeedbacks,
-  groupFeedbacksByDay,
-  type DimensionFilter,
-  type StatsFilterField,
-  type TimePreset,
-} from "../lib/feedbackStats";
-import {
-  buildServiceByCodeMap,
-  countByOrganizationViaService,
-  countByServiceId,
-} from "../lib/entityLookups";
-import { getData, initStorage, saveData } from "../lib/storage";
-import { DEFAULT_RATING_SCORES } from "../lib/ratingScores";
-import { getOrganizations, getScoreConfigs } from "../api";
+  getFeedbackOverview,
+  getFeedbackTopColumns,
+  getFeedbacks,
+  getOrganizations,
+  getScoreConfigs,
+  getServices,
+  type FeedbackGroupBy,
+  type FeedbackOverview,
+  type FeedbackOverviewInterval,
+} from "../api";
+import { getApiErrorMessage } from "../api/api";
 import { ActivityLogTable } from "../components/ActivityLogTable";
-import { FeedbackImportModal } from "../components/FeedbackImportModal";
 import {
   FilterChip,
   TopStatsPanel,
   TrafficChartSection,
   type TopStatsItem,
 } from "../components/feedbackCharts";
-import { EmptyState, PageHeader, Button } from "../components/ui";
+import type { DimensionFilter, StatsFilterField } from "../lib/feedbackStats";
+import { EmptyState, Input, LoadingState, PageHeader, Select } from "../components/ui";
 
 const RATING_KEYS: FeedbackRating[] = ["good", "normal", "bad"];
+const FETCH_PAGE_SIZE = 1000;
 
-const EMPTY_DATA: AppData = {
-  organizations: [],
-  services: [],
-  offlineKeys: [],
-  feedbacks: [],
-  ratingScores: DEFAULT_RATING_SCORES,
-};
+const RATING_OPTIONS = [
+  { value: "", label: "全部評價" },
+  { value: "good", label: "good" },
+  { value: "normal", label: "normal" },
+  { value: "bad", label: "bad" },
+];
 
-function toStatsItems(
-  rows: { label: string; count: number }[],
-): TopStatsItem[] {
-  return rows.map((row) => ({
-    label: row.label,
-    value: row.label,
-    count: row.count,
-  }));
+interface Filters {
+  organizationId: string;
+  serviceId: string;
+  feedbackRating: string;
+  device: string;
+  ipCountry: string;
+  sessionId: string;
+  from: string;
+  to: string;
 }
 
+const EMPTY_FILTERS: Filters = {
+  organizationId: "",
+  serviceId: "",
+  feedbackRating: "",
+  device: "",
+  ipCountry: "",
+  sessionId: "",
+  from: "",
+  to: "",
+};
+
+interface StatsDimension {
+  field: StatsFilterField;
+  groupBy: FeedbackGroupBy;
+  title: string;
+  // filter-bar field that also feeds an "include" value into this dimension, if any
+  formKey?: keyof Filters;
+}
+
+const STATS_DIMENSIONS: StatsDimension[] = [
+  { field: "serviceId", groupBy: "service", title: "服務", formKey: "serviceId" },
+  { field: "organization", groupBy: "org", title: "組織", formKey: "organizationId" },
+  { field: "feedbackRating", groupBy: "rate", title: "評價", formKey: "feedbackRating" },
+  { field: "ipCountry", groupBy: "ip_country", title: "來源國家/地區", formKey: "ipCountry" },
+  { field: "ipAsn", groupBy: "ip_asn", title: "主要來源 ASN" },
+  { field: "ipAddress", groupBy: "ip", title: "客戶端 IP 位址" },
+  { field: "originHost", groupBy: "origin_host", title: "主機" },
+  { field: "userAgent", groupBy: "user_agent", title: "使用者代理程式" },
+  { field: "device", groupBy: "device", title: "裝置", formKey: "device" },
+];
+
+function formatDayLabel(date: string): string {
+  const [y, m, d] = date.split("-");
+  return `${y}/${parseInt(m, 10)}/${parseInt(d, 10)}`;
+}
+
+function buildFilterValue(
+  formValue: string,
+  statsField: StatsFilterField | undefined,
+  dimensionFilters: DimensionFilter[],
+): string | string[] | undefined {
+  const matching = statsField
+    ? dimensionFilters.filter((f) => f.field === statsField)
+    : [];
+  const includes = matching.filter((f) => f.mode === "include").map((f) => f.value);
+  const excludes = matching
+    .filter((f) => f.mode === "exclude")
+    .map((f) => `-${f.value}`);
+  const values = [...(formValue ? [formValue] : []), ...includes, ...excludes];
+  if (values.length === 0) return undefined;
+  return values.length === 1 ? values[0] : values;
+}
+
+const FILTER_LABELS: Record<keyof Filters, string> = {
+  organizationId: "組織",
+  serviceId: "服務",
+  feedbackRating: "評價",
+  device: "裝置",
+  ipCountry: "來源國家/地區",
+  sessionId: "Session ID",
+  from: "起始時間",
+  to: "結束時間",
+};
+
 export function FeedbackOverviewPage() {
-  const { user } = useAuth();
-  const [ready, setReady] = useState(false);
-  const [dataVersion, setDataVersion] = useState(0);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [ratingConfigs, setRatingConfigs] = useState<
     Partial<Record<FeedbackRating, ScoreConfig>>
   >({});
-  const data = useMemo(
-    () => (ready ? getData() : EMPTY_DATA),
-    [ready, dataVersion],
-  );
-  const [timePreset, setTimePreset] = useState<TimePreset>(DEFAULT_TIME_PRESET);
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [dimensionFilters, setDimensionFilters] = useState<DimensionFilter[]>(
-    [],
-  );
-  const [importOpen, setImportOpen] = useState(false);
-  const [importNotice, setImportNotice] = useState("");
+
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [dimensionFilters, setDimensionFilters] = useState<DimensionFilter[]>([]);
+  const [interval, setInterval] = useState<FeedbackOverviewInterval>("day");
+
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [overview, setOverview] = useState<FeedbackOverview | null>(null);
+  const [topColumns, setTopColumns] = useState<
+    Partial<Record<StatsFilterField, TopStatsItem[]>>
+  >({});
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    initStorage().then(() => setReady(true));
-  }, []);
-
-  useEffect(() => {
-    getOrganizations().then((res) => setOrganizations(res.data.data));
+    getOrganizations({ currentUser: true }).then((res) =>
+      setOrganizations(res.data.data),
+    );
+    getServices({ currentUser: true }).then((res) => setServices(res.data.data));
     getScoreConfigs().then((res) => {
       const sorted = [...res.data.data].sort(
         (a, b) => b.scoreValue - a.scoreValue,
@@ -99,110 +144,74 @@ export function FeedbackOverviewPage() {
     });
   }, []);
 
-  const allFeedbacks = useMemo(
-    () =>
-      getUserFeedbacks(
-        data.feedbacks,
-        user?.organizationIds
-          .map((id) => organizations?.find((org) => org.id === id)?.code)
-          .filter((code): code is string => code !== undefined) ?? [],
-      ),
-    [data.feedbacks, user?.organizationIds, organizations],
-  );
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const filterParams = {
+        organizationId: buildFilterValue(
+          appliedFilters.organizationId,
+          "organization",
+          dimensionFilters,
+        ),
+        serviceId: buildFilterValue(
+          appliedFilters.serviceId,
+          "serviceId",
+          dimensionFilters,
+        ),
+        feedbackRating: buildFilterValue(
+          appliedFilters.feedbackRating,
+          "feedbackRating",
+          dimensionFilters,
+        ),
+        device: buildFilterValue(appliedFilters.device, "device", dimensionFilters),
+        ipCountry: buildFilterValue(
+          appliedFilters.ipCountry,
+          "ipCountry",
+          dimensionFilters,
+        ),
+        ipAsn: buildFilterValue("", "ipAsn", dimensionFilters),
+        ipAddress: buildFilterValue("", "ipAddress", dimensionFilters),
+        originHost: buildFilterValue("", "originHost", dimensionFilters),
+        userAgent: buildFilterValue("", "userAgent", dimensionFilters),
+        sessionId: appliedFilters.sessionId || undefined,
+        from: appliedFilters.from || undefined,
+        to: appliedFilters.to || undefined,
+      };
 
-  const timeRange = useMemo(
-    () => getFeedbackTimeRange(allFeedbacks),
-    [allFeedbacks],
-  );
+      const [feedbacksRes, overviewRes, ...topColumnsRes] = await Promise.all([
+        getFeedbacks({ ...filterParams, page: 1, pageSize: FETCH_PAGE_SIZE }),
+        getFeedbackOverview({ ...filterParams, interval }),
+        ...STATS_DIMENSIONS.map((d) =>
+          getFeedbackTopColumns({ ...filterParams, groupBy: d.groupBy }),
+        ),
+      ]);
 
-  const handlePresetChange = (preset: TimePreset) => {
-    setTimePreset(preset);
-    const range = getTimeRangeForPreset(preset, timeRange);
-    setStartTime(range.start);
-    setEndTime(range.end);
+      setFeedbacks(feedbacksRes.data.data);
+      setOverview(overviewRes.data);
+
+      const nextTopColumns: Partial<Record<StatsFilterField, TopStatsItem[]>> = {};
+      STATS_DIMENSIONS.forEach((d, i) => {
+        nextTopColumns[d.field] = topColumnsRes[i].data.items.map((item) => ({
+          label: item.label,
+          value: item.value,
+          count: item.count,
+        }));
+      });
+      setTopColumns(nextTopColumns);
+      setLoadError("");
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      setLoadError(`載入回饋資料時發生錯誤${detail ? `：${detail}` : ""}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    const range = getTimeRangeForPreset(timePreset, timeRange);
-    setStartTime(range.start);
-    setEndTime(range.end);
-  }, [timePreset, timeRange.min, timeRange.max]);
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedFilters, dimensionFilters, interval]);
 
-  const timeFiltered = useMemo(
-    () => filterFeedbacksByTime(allFeedbacks, startTime, endTime),
-    [allFeedbacks, startTime, endTime],
-  );
-
-  const filterContext = useMemo(
-    () => ({ serviceByCode: buildServiceByCodeMap(data.services) }),
-    [data.services],
-  );
-
-  const filtered = useMemo(
-    () => applyDimensionFilters(timeFiltered, dimensionFilters, filterContext),
-    [timeFiltered, dimensionFilters, filterContext],
-  );
-
-  const addFilter = useCallback(
-    (
-      field: StatsFilterField,
-      value: string,
-      label: string,
-      mode: "include" | "exclude",
-    ) => {
-      setDimensionFilters((prev) => {
-        const withoutDup = prev.filter(
-          (f) => !(f.field === field && f.value === value && f.mode === mode),
-        );
-        return [
-          ...withoutDup,
-          {
-            id: `${field}-${mode}-${value}-${Date.now()}`,
-            field,
-            value,
-            mode,
-            label,
-          },
-        ];
-      });
-    },
-    [],
-  );
-
-  const handleInclude = useCallback(
-    (field: StatsFilterField, value: string, label: string) => {
-      addFilter(field, value, label, "include");
-    },
-    [addFilter],
-  );
-
-  const handleExclude = useCallback(
-    (field: StatsFilterField, value: string, label: string) => {
-      addFilter(field, value, label, "exclude");
-    },
-    [addFilter],
-  );
-
-  const removeFilter = (id: string) => {
-    setDimensionFilters((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const clearAllFilters = () => {
-    setTimePreset(DEFAULT_TIME_PRESET);
-    const range = getTimeRangeForPreset(DEFAULT_TIME_PRESET, timeRange);
-    setStartTime(range.start);
-    setEndTime(range.end);
-    setDimensionFilters([]);
-  };
-
-  const scoreMap = useMemo<Record<FeedbackRating, number>>(
-    () => ({
-      good: ratingConfigs.good?.scoreValue ?? 0,
-      normal: ratingConfigs.normal?.scoreValue ?? 0,
-      bad: ratingConfigs.bad?.scoreValue ?? 0,
-    }),
-    [ratingConfigs],
-  );
   const ratingLabels = useMemo<Record<FeedbackRating, string>>(
     () => ({
       good: ratingConfigs.good?.name ?? "good",
@@ -213,225 +222,240 @@ export function FeedbackOverviewPage() {
   );
 
   const dailyTraffic = useMemo(
-    () => groupFeedbacksByDay(filtered, startTime, endTime),
-    [filtered, startTime, endTime],
-  );
-  const avgScore = useMemo(
-    () => getAverageScore(filtered, scoreMap),
-    [filtered, scoreMap],
-  );
-  const ratingCounts = useMemo(() => getRatingCounts(filtered), [filtered]);
-
-  const countryItems = useMemo(
-    () => toStatsItems(countByField(filtered, "ipCountry")),
-    [filtered],
-  );
-  const asnItems = useMemo(
-    () => toStatsItems(countByField(filtered, "ipAsn")),
-    [filtered],
-  );
-  const ipItems = useMemo(
-    () => toStatsItems(countByField(filtered, "ipAddress")),
-    [filtered],
-  );
-  const hostItems = useMemo(
-    () => toStatsItems(countByField(filtered, "originHost")),
-    [filtered],
-  );
-  const userAgentItems = useMemo(
-    () => toStatsItems(countByField(filtered, "userAgent")),
-    [filtered],
-  );
-  const deviceItems = useMemo(
-    () => toStatsItems(countByField(filtered, "device")),
-    [filtered],
-  );
-  const serviceItems = useMemo(
-    () => countByServiceId(filtered, data.services),
-    [filtered, data.services],
-  );
-  const organizationItems = useMemo(
-    () => countByOrganizationViaService(filtered, data.services, organizations),
-    [filtered, data.services, organizations],
-  );
-  const ratingItems = useMemo<TopStatsItem[]>(
     () =>
-      RATING_KEYS.map((key) => ({
-        label: ratingLabels[key],
-        value: key,
-        count: ratingCounts[key],
-      })).filter((i) => i.count > 0),
-    [ratingCounts, ratingLabels],
+      (overview?.counts ?? []).map((c) => ({
+        date: c.date,
+        label: formatDayLabel(c.date),
+        count: c.count,
+      })),
+    [overview],
   );
 
-  const hasFilters =
-    dimensionFilters.length > 0 || timePreset !== DEFAULT_TIME_PRESET;
+  const organizationOptions = [
+    { value: "", label: "全部組織" },
+    ...organizations.map((o) => ({ value: o.id, label: o.name })),
+  ];
+  const serviceOptions = [
+    { value: "", label: "全部服務" },
+    ...services.map((s) => ({ value: s.code, label: s.name })),
+  ];
 
-  const handleImported = (feedbacks: Feedback[], message: string) => {
-    const store = getData();
-    store.feedbacks = feedbacks;
-    saveData(store);
-    setDataVersion((v) => v + 1);
-    setImportNotice(message);
+  const applyFilters = () => {
+    setAppliedFilters(filters);
   };
 
+  const clearFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    setAppliedFilters(EMPTY_FILTERS);
+    setDimensionFilters([]);
+  };
+
+  const removeFilter = (key: keyof Filters) => {
+    setFilters((f) => ({ ...f, [key]: "" }));
+    setAppliedFilters((f) => ({ ...f, [key]: "" }));
+  };
+
+  const addDimensionFilter = (
+    field: StatsFilterField,
+    value: string,
+    label: string,
+    mode: "include" | "exclude",
+  ) => {
+    setDimensionFilters((prev) => {
+      const withoutDup = prev.filter(
+        (f) => !(f.field === field && f.value === value && f.mode === mode),
+      );
+      return [
+        ...withoutDup,
+        { id: `${field}-${mode}-${value}-${Date.now()}`, field, value, mode, label },
+      ];
+    });
+  };
+
+  const handleInclude = (field: StatsFilterField, value: string, label: string) =>
+    addDimensionFilter(field, value, label, "include");
+
+  const handleExclude = (field: StatsFilterField, value: string, label: string) =>
+    addDimensionFilter(field, value, label, "exclude");
+
+  const removeDimensionFilter = (id: string) => {
+    setDimensionFilters((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const activeFilterChips = (Object.keys(EMPTY_FILTERS) as (keyof Filters)[])
+    .filter((key) => appliedFilters[key])
+    .map((key) => {
+      const value = appliedFilters[key];
+      let valueLabel = value;
+      if (key === "organizationId") {
+        valueLabel = organizations.find((o) => o.id === value)?.name ?? value;
+      } else if (key === "serviceId") {
+        valueLabel = services.find((s) => s.code === value)?.name ?? value;
+      }
+      return { key, label: FILTER_LABELS[key], valueLabel };
+    });
+
   return (
-    <>
+    <div className="cf-analytics">
       <PageHeader
         title="回饋資料總覽"
         description="檢視回饋趨勢、平均分數、來源分布與活動記錄"
-        action={
-          <Button
-            variant="secondary"
-            onClick={() => setImportOpen(true)}
-            disabled={!ready}
-          >
-            手動匯入資料
-          </Button>
-        }
       />
 
-      {importNotice && (
-        <div className="cf-alert cf-alert--success mb-4">{importNotice}</div>
+      <div className="cf-card mb-4 p-4 sm:p-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Select
+            label="組織"
+            options={organizationOptions}
+            value={filters.organizationId}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, organizationId: e.target.value }))
+            }
+          />
+          <Select
+            label="服務"
+            options={serviceOptions}
+            value={filters.serviceId}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, serviceId: e.target.value }))
+            }
+          />
+          <Select
+            label="評價"
+            options={RATING_OPTIONS}
+            value={filters.feedbackRating}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, feedbackRating: e.target.value }))
+            }
+          />
+          <Input
+            label="裝置"
+            value={filters.device}
+            onChange={(e) => setFilters((f) => ({ ...f, device: e.target.value }))}
+          />
+          <Input
+            label="來源國家/地區"
+            value={filters.ipCountry}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, ipCountry: e.target.value }))
+            }
+          />
+          <Input
+            label="Session ID"
+            value={filters.sessionId}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, sessionId: e.target.value }))
+            }
+          />
+          <Input
+            label="起始時間"
+            type="datetime-local"
+            value={filters.from}
+            onChange={(e) => setFilters((f) => ({ ...f, from: e.target.value }))}
+          />
+          <Input
+            label="結束時間"
+            type="datetime-local"
+            value={filters.to}
+            onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value }))}
+          />
+        </div>
+
+        {(activeFilterChips.length > 0 || dimensionFilters.length > 0) && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {activeFilterChips.map((chip) => (
+              <span key={chip.key} className="cf-filter-chip">
+                <span className="cf-filter-chip__field">{chip.label}</span>
+                <span className="cf-filter-chip__value" title={chip.valueLabel}>
+                  {chip.valueLabel}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeFilter(chip.key)}
+                  className="cf-filter-chip__remove"
+                  aria-label={`移除 ${chip.label} 篩選`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {dimensionFilters.map((f) => (
+              <FilterChip
+                key={f.id}
+                filter={f}
+                onRemove={() => removeDimensionFilter(f.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={clearFilters} className="cf-btn-outline">
+            清除篩選
+          </button>
+          <button
+            type="button"
+            onClick={applyFilters}
+            className="cf-btn cf-btn--primary"
+          >
+            套用篩選
+          </button>
+        </div>
+      </div>
+
+      {loadError && (
+        <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
+          <span>{loadError}</span>
+          <button type="button" onClick={refresh} className="cf-link shrink-0">
+            重試
+          </button>
+        </div>
       )}
 
-      <FeedbackImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        services={data.services}
-        organizations={organizations}
-        existing={data.feedbacks}
-        onImported={handleImported}
-      />
-
-      {!user?.organizationIds.length ? (
-        <EmptyState message="您尚未被指派至任何組織，無法檢視回饋資料總覽" />
-      ) : allFeedbacks.length === 0 ? (
+      {loading ? (
+        <LoadingState />
+      ) : !overview || overview.totalCount === 0 ? (
         <EmptyState message="目前尚無回饋紀錄" />
       ) : (
-        <div className="cf-analytics">
-          <div className="cf-panel">
-            <TrafficChartSection
-              points={dailyTraffic}
-              timePreset={timePreset}
-              onTimePresetChange={handlePresetChange}
-              avgScore={avgScore}
-              total={filtered.length}
+        <div className="cf-panel">
+          <TrafficChartSection
+            points={dailyTraffic}
+            interval={interval}
+            onIntervalChange={setInterval}
+            avgScore={overview.averageScore}
+            total={overview.totalCount}
+          />
+
+          <div className="cf-divider px-4 py-5 sm:px-5">
+            <h2 className="cf-section-title">熱門流量</h2>
+            <p className="cf-section-desc">
+              分析所選篩選條件下的回饋來源分布（顯示前 5 名）。
+            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {STATS_DIMENSIONS.map((d) => (
+                <TopStatsPanel
+                  key={d.field}
+                  title={d.title}
+                  field={d.field}
+                  allItems={topColumns[d.field] ?? []}
+                  onInclude={handleInclude}
+                  onExclude={handleExclude}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="cf-divider">
+            <ActivityLogTable
+              feedbacks={feedbacks}
+              services={services}
+              organizations={organizations}
+              ratingLabels={ratingLabels}
             />
-
-            <div className="cf-divider px-4 py-5 sm:px-5">
-              <h2 className="cf-section-title">熱門流量</h2>
-              <p className="cf-section-desc">
-                分析所選時間範圍內的回饋來源。將滑鼠移到項目上可篩選或排除。
-              </p>
-
-              {hasFilters && (
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {dimensionFilters.map((f) => (
-                    <FilterChip
-                      key={f.id}
-                      filter={f}
-                      onRemove={() => removeFilter(f.id)}
-                    />
-                  ))}
-                  <button
-                    type="button"
-                    onClick={clearAllFilters}
-                    className="cf-btn-outline !py-1.5 text-[#0055dc]"
-                  >
-                    清除全部篩選
-                  </button>
-                </div>
-              )}
-
-              {timeFiltered.length === 0 ? (
-                <p className="mt-8 text-center text-sm text-[#8c8c8c]">
-                  此時間範圍內尚無回饋紀錄
-                </p>
-              ) : filtered.length === 0 ? (
-                <p className="mt-8 text-center text-sm text-[#8c8c8c]">
-                  目前篩選條件下尚無回饋紀錄
-                </p>
-              ) : (
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <TopStatsPanel
-                    title="服務"
-                    field="serviceId"
-                    allItems={serviceItems}
-                    onInclude={handleInclude}
-                    onExclude={handleExclude}
-                  />
-                  <TopStatsPanel
-                    title="組織"
-                    field="organization"
-                    allItems={organizationItems}
-                    onInclude={handleInclude}
-                    onExclude={handleExclude}
-                  />
-                  <TopStatsPanel
-                    title="評價"
-                    field="feedbackRating"
-                    allItems={ratingItems}
-                    onInclude={handleInclude}
-                    onExclude={handleExclude}
-                  />
-                  <TopStatsPanel
-                    title="來源國家/地區"
-                    field="ipCountry"
-                    allItems={countryItems}
-                    onInclude={handleInclude}
-                    onExclude={handleExclude}
-                  />
-                  <TopStatsPanel
-                    title="主要來源 ASN"
-                    field="ipAsn"
-                    allItems={asnItems}
-                    onInclude={handleInclude}
-                    onExclude={handleExclude}
-                  />
-                  <TopStatsPanel
-                    title="客戶端 IP 位址"
-                    field="ipAddress"
-                    allItems={ipItems}
-                    onInclude={handleInclude}
-                    onExclude={handleExclude}
-                  />
-                  <TopStatsPanel
-                    title="主機"
-                    field="originHost"
-                    allItems={hostItems}
-                    onInclude={handleInclude}
-                    onExclude={handleExclude}
-                  />
-                  <TopStatsPanel
-                    title="使用者代理程式"
-                    field="userAgent"
-                    allItems={userAgentItems}
-                    onInclude={handleInclude}
-                    onExclude={handleExclude}
-                  />
-                  <TopStatsPanel
-                    title="裝置"
-                    field="device"
-                    allItems={deviceItems}
-                    onInclude={handleInclude}
-                    onExclude={handleExclude}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="cf-divider">
-              <ActivityLogTable
-                feedbacks={filtered}
-                services={data.services}
-                organizations={organizations}
-                ratingLabels={ratingLabels}
-              />
-            </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

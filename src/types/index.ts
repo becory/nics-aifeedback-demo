@@ -35,7 +35,6 @@ export interface User {
   email: string
   organizationIds: string[]
   isSystemAdmin: boolean
-  mfaExempt: boolean
   twoFactorEnabled?: boolean
 }
 
@@ -103,14 +102,6 @@ export interface Feedback {
   originHost: string
   device: string
   durationSec?: number
-}
-
-export interface AppData {
-  organizations: Organization[]
-  services: Service[]
-  offlineKeys: OfflineKey[]
-  feedbacks: Feedback[]
-  ratingScores: RatingScoresConfig
 }
 
 export type AuthStep = 'login' | '2fa_setup' | '2fa_verify' | 'authenticated'

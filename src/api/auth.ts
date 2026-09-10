@@ -22,3 +22,7 @@ export const postChangePassword = (currentPassword: string, newPassword: string)
   "currentPassword": currentPassword,
   "newPassword": newPassword
 })
+
+export const postResetTwoFactor = (currentPassword: string) => instance.post<null>('/auth/2fa/reset', {
+  "currentPassword": currentPassword
+})

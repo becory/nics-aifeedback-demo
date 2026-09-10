@@ -4,7 +4,7 @@ import { getScoreConfigs, updateScoreConfig } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import { RATING_KEY_LABELS, RATING_KEYS } from "../lib/ratingScores";
 import { Modal } from "../components/Modal";
-import { Button, Input, PageHeader } from "../components/ui";
+import { Button, Input, LoadingState, PageHeader } from "../components/ui";
 
 interface ScoreForm {
   name: string;
@@ -24,17 +24,28 @@ export function ScoresPage() {
     scoreValue: 0,
   });
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
-    const res = await getScoreConfigs();
-    const sorted = [...res.data.data].sort(
-      (a, b) => b.scoreValue - a.scoreValue,
-    );
-    const next: Partial<Record<FeedbackRating, ScoreConfig>> = {};
-    RATING_KEYS.forEach((key, index) => {
-      if (sorted[index]) next[key] = sorted[index];
-    });
-    setConfigs(next);
+    setLoading(true);
+    try {
+      const res = await getScoreConfigs();
+      const sorted = [...res.data.data].sort(
+        (a, b) => b.scoreValue - a.scoreValue,
+      );
+      const next: Partial<Record<FeedbackRating, ScoreConfig>> = {};
+      RATING_KEYS.forEach((key, index) => {
+        if (sorted[index]) next[key] = sorted[index];
+      });
+      setConfigs(next);
+      setLoadError("");
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      setLoadError(`載入分數設定時發生錯誤${detail ? `：${detail}` : ""}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -99,55 +110,68 @@ export function ScoresPage() {
         description="設定各評價等級的分數與中文說明，總覽的平均分數將依此計算"
       />
 
-      <div className="cf-card">
-        <table className="cf-table">
-          <thead>
-            <tr>
-              <th className="px-4 py-3 font-medium text-slate-600">
-                評價代碼
-              </th>
-              <th className="px-4 py-3 font-medium text-slate-600">
-                中文名稱
-              </th>
-              <th className="px-4 py-3 font-medium text-slate-600">
-                中文說明
-              </th>
-              <th className="px-4 py-3 font-medium text-slate-600">分數</th>
-              <th className="px-4 py-3 font-medium text-slate-600">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {RATING_KEYS.map((key) => {
-              const cfg = configs[key];
-              return (
-                <tr key={key}>
-                  <td className="px-4 py-3 font-mono text-slate-600">
-                    {RATING_KEY_LABELS[key]}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-slate-900">
-                    {cfg?.name ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {cfg?.description ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 tabular-nums text-slate-900">
-                    {cfg?.scoreValue ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Button
-                      variant="secondary"
-                      onClick={() => openEdit(key)}
-                      disabled={!cfg}
-                    >
-                      編輯
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {loadError && (
+        <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
+          <span>{loadError}</span>
+          <button type="button" onClick={refresh} className="cf-link shrink-0">
+            重試
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <LoadingState />
+      ) : (
+        <div className="cf-card">
+          <table className="cf-table">
+            <thead>
+              <tr>
+                <th className="px-4 py-3 font-medium text-slate-600">
+                  評價代碼
+                </th>
+                <th className="px-4 py-3 font-medium text-slate-600">
+                  中文名稱
+                </th>
+                <th className="px-4 py-3 font-medium text-slate-600">
+                  中文說明
+                </th>
+                <th className="px-4 py-3 font-medium text-slate-600">分數</th>
+                <th className="px-4 py-3 font-medium text-slate-600">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {RATING_KEYS.map((key) => {
+                const cfg = configs[key];
+                return (
+                  <tr key={key}>
+                    <td className="px-4 py-3 font-mono text-slate-600">
+                      {RATING_KEY_LABELS[key]}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {cfg?.name ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {cfg?.description ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-slate-900">
+                      {cfg?.scoreValue ?? "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button
+                        variant="secondary"
+                        onClick={() => openEdit(key)}
+                        disabled={!cfg}
+                      >
+                        編輯
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <Modal
         open={modalOpen}

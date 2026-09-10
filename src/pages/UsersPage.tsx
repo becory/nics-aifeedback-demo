@@ -6,6 +6,7 @@ import {
   CheckboxGroup,
   EmptyState,
   Input,
+  LoadingState,
   PageHeader,
 } from "../components/ui";
 import {
@@ -39,14 +40,24 @@ export function UsersPage() {
   const [password, setPassword] = useState("");
   const [organizationIds, setOrganizationIds] = useState<string[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [mfaExempt, setMfaExempt] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
-    const users = await getUsers();
-    const orgs = await getOrganizations({ IsActive: true });
-    setItems(users.data.data);
-    setOrganizations(orgs.data.data);
+    setLoading(true);
+    try {
+      const users = await getUsers();
+      const orgs = await getOrganizations({ IsActive: true });
+      setItems(users.data.data);
+      setOrganizations(orgs.data.data);
+      setLoadError("");
+    } catch (error) {
+      const detail = getApiErrorMessage(error);
+      setLoadError(`載入使用者資料時發生錯誤${detail ? `：${detail}` : ""}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -68,7 +79,6 @@ export function UsersPage() {
     setIsAdmin(false);
     setError("");
     setModalOpen(true);
-    setMfaExempt(false);
   };
 
   const openEdit = async (user: User) => {
@@ -86,7 +96,6 @@ export function UsersPage() {
       setIsAdmin(getUser.data.isSystemAdmin);
       setError("");
       setModalOpen(true);
-      setMfaExempt(getUser.data.mfaExempt);
     } catch (error) {
       console.error("Error fetching user:", error);
       const detail = getApiErrorMessage(error);
@@ -125,7 +134,6 @@ export function UsersPage() {
           email: normalizedEmail,
           organizationIds,
           isSystemAdmin: isAdmin,
-          mfaExempt: mfaExempt,
         };
         await updateUser(editing.id, updateUserData);
       } else {
@@ -136,7 +144,6 @@ export function UsersPage() {
           initialPassword: password,
           organizationIds,
           isSystemAdmin: isAdmin,
-          mfaExempt: mfaExempt,
         };
         await createUser(newUser);
       }
@@ -229,7 +236,18 @@ export function UsersPage() {
         action={<Button onClick={openCreate}>新增使用者</Button>}
       />
 
-      {items.length === 0 ? (
+      {loadError && (
+        <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
+          <span>{loadError}</span>
+          <button type="button" onClick={refresh} className="cf-link shrink-0">
+            重試
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <LoadingState />
+      ) : items.length === 0 ? (
         <EmptyState message="尚無使用者資料" />
       ) : (
         <div className="cf-card">
@@ -263,18 +281,12 @@ export function UsersPage() {
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                        user.mfaExempt
-                          ? "bg-blue-100 text-blue-700"
-                          : user.twoFactorEnabled
-                            ? "bg-green-100 text-green-700"
-                            : "bg-amber-100 text-amber-700"
+                        user.twoFactorEnabled
+                          ? "bg-green-100 text-green-700"
+                          : "bg-amber-100 text-amber-700"
                       }`}
                     >
-                      {user.mfaExempt
-                        ? "免綁"
-                        : user.twoFactorEnabled
-                          ? "已綁定"
-                          : "待綁定"}
+                      {user.twoFactorEnabled ? "已綁定" : "待綁定"}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -366,15 +378,6 @@ export function UsersPage() {
               className="h-4 w-4 rounded border-[#d9d9d9] text-[#0055dc] focus:ring-[#0055dc]"
             />
             管理員
-          </label>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={mfaExempt}
-              onChange={(e) => setMfaExempt(e.target.checked)}
-              className="h-4 w-4 rounded border-[#d9d9d9] text-[#0055dc] focus:ring-[#0055dc]"
-            />
-            免用二階段驗證
           </label>
 
           {!editing && (

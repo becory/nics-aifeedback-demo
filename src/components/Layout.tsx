@@ -21,6 +21,7 @@ const adminNavItems = [
 
 const userNavItems = [
   { to: "/feedback-overview", label: "回饋資料總覽", Icon: OverviewIcon },
+  { to: "/my-organizations", label: "組織清單", Icon: OrgIcon },
   { to: "/my-services", label: "服務清單", Icon: ListIcon },
 ];
 
@@ -112,12 +113,12 @@ function AccountMenu() {
             )}
           </div>
           <NavLink
-            to="/change-password"
+            to="/security-settings"
             role="menuitem"
             className="cf-account-menu__item"
             onClick={() => setOpen(false)}
           >
-            修改密碼
+            安全性設定
           </NavLink>
           <button
             type="button"
