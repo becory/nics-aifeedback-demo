@@ -14,6 +14,7 @@ import {
   post2FA,
   postConfirm2FA,
   postLogin,
+  postLogout,
   postRefresh,
 } from "../api/auth";
 import {
@@ -162,7 +163,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [session],
   );
 
-  const logout = useCallback(() => {}, []);
+  const logout = useCallback(() => {
+    postLogout().catch(() => {});
+    setAccessToken(null);
+    setSession(null);
+    setUser(null);
+  }, []);
 
   const value = useMemo(
     () => ({

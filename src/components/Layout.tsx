@@ -113,12 +113,12 @@ function AccountMenu() {
             )}
           </div>
           <NavLink
-            to="/change-password"
+            to="/security-settings"
             role="menuitem"
             className="cf-account-menu__item"
             onClick={() => setOpen(false)}
           >
-            修改密碼
+            安全性設定
           </NavLink>
           <button
             type="button"

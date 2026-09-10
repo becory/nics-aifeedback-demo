@@ -35,7 +35,6 @@ export interface User {
   email: string
   organizationIds: string[]
   isSystemAdmin: boolean
-  mfaExempt: boolean
   twoFactorEnabled?: boolean
 }
 

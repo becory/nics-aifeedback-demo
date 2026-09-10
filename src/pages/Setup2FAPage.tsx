@@ -82,6 +82,7 @@ export function Setup2FAPage() {
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             className="cf-input cf-input--center text-lg tracking-widest"
             placeholder="000000"
+            autoComplete="one-time-code"
             required
           />
         </div>
