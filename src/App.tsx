@@ -11,6 +11,7 @@ import { UsersPage } from './pages/UsersPage'
 import { OfflineKeysPage } from './pages/OfflineKeysPage'
 import { ScoresPage } from './pages/ScoresPage'
 import { ServiceListPage } from './pages/ServiceListPage'
+import { MyOrganizationsPage } from './pages/MyOrganizationsPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { FeedbackOverviewPage } from './pages/FeedbackOverviewPage'
 
@@ -35,6 +36,7 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/feedback-overview" element={<FeedbackOverviewPage />} />
               <Route path="/my-services" element={<ServiceListPage />} />
+              <Route path="/my-organizations" element={<MyOrganizationsPage />} />
               <Route path="/feedbacks" element={<Navigate to="/feedback-overview" replace />} />
               <Route path="/change-password" element={<ChangePasswordPage />} />
               <Route element={<AdminRoute />}>

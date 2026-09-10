@@ -19,17 +19,11 @@ export function ServiceListPage() {
       setLoading(true);
       try {
         const [orgs, svcs] = await Promise.all([
-          getOrganizations(),
-          getServices(),
+          getOrganizations({ currentUser: true }),
+          getServices({ currentUser: true }),
         ]);
-        setOrganizations(
-          orgs.data.data.filter((o) => user.organizationIds.includes(o.id)),
-        );
-        setServices(
-          svcs.data.data.filter((s) =>
-            user.organizationIds.includes(s.organizationId),
-          ),
-        );
+        setOrganizations(orgs.data.data);
+        setServices(svcs.data.data);
         setLoadError("");
       } catch (error) {
         const detail = getApiErrorMessage(error);
@@ -58,7 +52,7 @@ export function ServiceListPage() {
 
       {loading ? (
         <LoadingState />
-      ) : !user?.organizationIds.length ? (
+      ) : !organizations.length ? (
         <EmptyState message="您尚未被指派至任何組織，無法檢視服務" />
       ) : services.length === 0 ? (
         <EmptyState message="您所屬的組織目前尚無服務" />

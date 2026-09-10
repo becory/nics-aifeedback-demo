@@ -6,6 +6,7 @@ export interface GetServicesParams {
   code?: string
   isActive?: boolean
   keyword?: string
+  currentUser?: boolean
 }
 
 export const getServices = (params?: GetServicesParams) => instance.get<DataResponse<Service[]>>('/services', { params })

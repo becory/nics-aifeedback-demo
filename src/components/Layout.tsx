@@ -21,6 +21,7 @@ const adminNavItems = [
 
 const userNavItems = [
   { to: "/feedback-overview", label: "回饋資料總覽", Icon: OverviewIcon },
+  { to: "/my-organizations", label: "組織清單", Icon: OrgIcon },
   { to: "/my-services", label: "服務清單", Icon: ListIcon },
 ];
 
