@@ -343,7 +343,7 @@ export function UsersPage() {
       >
         <div className="space-y-4">
           {error && <div className="cf-alert cf-alert--error">{error}</div>}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 [&>.cf-field]:mt-0!">
             <Input
               label="中文名稱"
               value={name}
