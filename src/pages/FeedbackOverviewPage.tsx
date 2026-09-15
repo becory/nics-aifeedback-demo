@@ -303,7 +303,7 @@ export function FeedbackOverviewPage() {
       />
 
       <div className="cf-card mb-4 p-4 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>.cf-field]:mt-0!">
           <Select
             label="組織"
             options={organizationOptions}
