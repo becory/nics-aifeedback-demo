@@ -165,10 +165,14 @@ export interface ImportLog {
   agentCode?: string | null
   agentName?: string | null
   keyGenerationId?: string | null
+  keyPreview?: string | null
+  fileMd5: string
   status: ImportLogStatus
   requestedByUserId: string
   requestedAt: string
   completedAt?: string | null
+  dataRangeStart?: string | null
+  dataRangeEnd?: string | null
   totalRecordCount: number
   succeededRecordCount: number
   failedRecordCount: number
@@ -181,6 +185,16 @@ export interface ImportLogLineError {
   reason: string
 }
 
+export interface ImportLogServiceSummary {
+  serviceId: string
+  totalCount: number
+  succeededCount: number
+  duplicateCount: number
+  failedCount: number
+  failedReason?: string | null
+}
+
 export interface ImportLogDetail extends ImportLog {
   failedLineSamples: ImportLogLineError[]
+  serviceSummaries: ImportLogServiceSummary[]
 }

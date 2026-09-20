@@ -29,8 +29,18 @@ function statusBadgeClass(status: string): string {
   return "bg-red-100 text-red-700";
 }
 
-function shortId(id?: string | null): string {
-  return id ? id.slice(0, 8) : "—";
+function formatDateOnly(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+function formatDataRange(log: ImportLog): string {
+  if (!log.dataRangeStart || !log.dataRangeEnd) return "—";
+  return `${formatDateOnly(log.dataRangeStart)} ~ ${formatDateOnly(log.dataRangeEnd)}`;
 }
 
 export function ImportPage() {
@@ -170,7 +180,7 @@ export function ImportPage() {
           <p className="mb-4 text-xs text-slate-500">
             上次匯入：
             {lastLog.agentName
-              ? `${lastLog.agentName} (${lastLog.agentCode})，金鑰版本 ${shortId(lastLog.keyGenerationId)}`
+              ? `${lastLog.agentName} (${lastLog.agentCode})，金鑰 ${lastLog.keyPreview ?? "—"}`
               : "—"}
             ，{formatDisplayTime(lastLog.requestedAt)}
           </p>
@@ -181,10 +191,23 @@ export function ImportPage() {
         )}
         {uploadResult && (
           <div className="cf-alert mb-4 bg-slate-50">
-            匯入結果：{STATUS_LABELS[uploadResult.status] ?? uploadResult.status}，
-            共 {uploadResult.totalRecordCount} 筆，成功 {uploadResult.succeededRecordCount}，
-            失敗 {uploadResult.failedRecordCount}，重複 {uploadResult.duplicateRecordCount}
-            {uploadResult.errorMessage ? `，${uploadResult.errorMessage}` : ""}
+            <p>
+              匯入結果：{STATUS_LABELS[uploadResult.status] ?? uploadResult.status}，
+              共 {uploadResult.totalRecordCount} 筆，成功 {uploadResult.succeededRecordCount}，
+              失敗 {uploadResult.failedRecordCount}，重複 {uploadResult.duplicateRecordCount}
+              {uploadResult.errorMessage ? `，${uploadResult.errorMessage}` : ""}
+            </p>
+            {uploadResult.serviceSummaries.length > 0 && (
+              <ul className="mt-2 space-y-0.5 text-xs text-slate-600">
+                {uploadResult.serviceSummaries.map((s) => (
+                  <li key={s.serviceId}>
+                    <span className="font-mono">{s.serviceId}</span>：共 {s.totalCount} 筆，
+                    成功 {s.succeededCount}，失敗 {s.failedCount}，重複 {s.duplicateCount}
+                    {s.failedReason ? `（失敗原因：${s.failedReason}）` : ""}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -234,7 +257,8 @@ export function ImportPage() {
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-600">時間</th>
                 <th className="px-4 py-3 font-medium text-slate-600">代理</th>
-                <th className="px-4 py-3 font-medium text-slate-600">版本</th>
+                <th className="px-4 py-3 font-medium text-slate-600">金鑰</th>
+                <th className="px-4 py-3 font-medium text-slate-600">資料範圍</th>
                 <th className="px-4 py-3 font-medium text-slate-600">狀態</th>
                 <th className="px-4 py-3 font-medium text-slate-600">總筆數</th>
                 <th className="px-4 py-3 font-medium text-slate-600">成功</th>
@@ -256,7 +280,10 @@ export function ImportPage() {
                       {log.agentName ? `${log.agentName} (${log.agentCode})` : "—"}
                     </td>
                     <td className="px-4 py-3 font-mono text-slate-600">
-                      {shortId(log.keyGenerationId)}
+                      {log.keyPreview ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {formatDataRange(log)}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -281,7 +308,7 @@ export function ImportPage() {
                   </tr>
                   {expandedId === log.id && (
                     <tr>
-                      <td colSpan={9} className="bg-slate-50 px-4 py-4">
+                      <td colSpan={10} className="bg-slate-50 px-4 py-4">
                         {expandedLoading ? (
                           <LoadingState />
                         ) : expandedError ? (
@@ -292,6 +319,49 @@ export function ImportPage() {
                               <p className="mb-2 text-sm text-red-600">
                                 {expandedDetail.errorMessage}
                               </p>
+                            )}
+                            {expandedDetail.serviceSummaries.length > 0 && (
+                              <div className="mb-4">
+                                <p className="mb-1 text-xs font-medium text-slate-500">
+                                  各服務匯入筆數
+                                </p>
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="text-left text-xs text-slate-500">
+                                      <th className="py-1 pr-4 font-medium">服務</th>
+                                      <th className="py-1 pr-4 font-medium">總筆數</th>
+                                      <th className="py-1 pr-4 font-medium">成功</th>
+                                      <th className="py-1 pr-4 font-medium">失敗</th>
+                                      <th className="py-1 pr-4 font-medium">重複</th>
+                                      <th className="py-1 font-medium">失敗原因</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {expandedDetail.serviceSummaries.map((s) => (
+                                      <tr key={s.serviceId}>
+                                        <td className="py-1 pr-4 font-mono text-slate-600">
+                                          {s.serviceId}
+                                        </td>
+                                        <td className="py-1 pr-4 text-slate-600">
+                                          {s.totalCount}
+                                        </td>
+                                        <td className="py-1 pr-4 text-slate-600">
+                                          {s.succeededCount}
+                                        </td>
+                                        <td className="py-1 pr-4 text-slate-600">
+                                          {s.failedCount}
+                                        </td>
+                                        <td className="py-1 pr-4 text-slate-600">
+                                          {s.duplicateCount}
+                                        </td>
+                                        <td className="py-1 text-slate-600">
+                                          {s.failedReason ?? "—"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             )}
                             {expandedDetail.failedLineSamples.length === 0 ? (
                               <p className="text-sm text-slate-500">無失敗列細節</p>
@@ -315,6 +385,9 @@ export function ImportPage() {
                                 </tbody>
                               </table>
                             )}
+                            <p className="mt-3 text-xs text-slate-400">
+                              檔案 MD5：<span className="font-mono">{expandedDetail.fileMd5}</span>
+                            </p>
                           </>
                         ) : null}
                       </td>
