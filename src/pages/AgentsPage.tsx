@@ -66,6 +66,10 @@ export function AgentsPage() {
 
   const [revealKey, setRevealKey] = useState<{ agentName: string; aesKey: string } | null>(null);
 
+  const [rotatingAgent, setRotatingAgent] = useState<Agent | null>(null);
+  const [rotateExpiresAt, setRotateExpiresAt] = useState("");
+  const [rotateError, setRotateError] = useState("");
+
   const refresh = async () => {
     setLoading(true);
     try {
@@ -117,7 +121,6 @@ export function AgentsPage() {
     setCode(agent.code);
     setName(agent.name);
     setDescription(agent.description ?? "");
-    setExpiresAt(toDatetimeLocal(agent.expiresAt));
     setError("");
     setModalOpen(true);
   };
@@ -135,14 +138,8 @@ export function AgentsPage() {
       setError("請輸入代理名稱");
       return;
     }
-    if (!expiresAt) {
-      setError("請設定到期時間");
-      return;
-    }
-
-    const expiresAtIso = new Date(expiresAt).toISOString();
-    if (new Date(expiresAtIso).getTime() <= Date.now()) {
-      setError("到期時間必須晚於現在");
+    if (!editing && !expiresAt) {
+      setError("請設定金鑰到期時間");
       return;
     }
 
@@ -151,9 +148,14 @@ export function AgentsPage() {
         await updateAgent(editing.id, {
           name: name.trim(),
           description: description.trim() || undefined,
-          expiresAt: expiresAtIso,
         });
       } else {
+        const expiresAtIso = new Date(expiresAt).toISOString();
+        if (new Date(expiresAtIso).getTime() <= Date.now()) {
+          setError("到期時間必須晚於現在");
+          return;
+        }
+
         const created = await createAgent({
           organizationId,
           code: code.trim().toUpperCase(),
@@ -191,20 +193,37 @@ export function AgentsPage() {
     refresh();
   };
 
-  const handleRotateKey = async (agent: Agent) => {
-    if (!confirm(`確定要為「${agent.name}」輪替金鑰？輪替後請重新下載 .env 部署代理。`)) return;
+  const openRotateKey = (agent: Agent) => {
+    setRotatingAgent(agent);
+    setRotateExpiresAt(defaultExpiresAt());
+    setRotateError("");
+  };
+
+  const confirmRotateKey = async () => {
+    if (!rotatingAgent) return;
+    if (!rotateExpiresAt) {
+      setRotateError("請設定新金鑰到期時間");
+      return;
+    }
+
+    const expiresAtIso = new Date(rotateExpiresAt).toISOString();
+    if (new Date(expiresAtIso).getTime() <= Date.now()) {
+      setRotateError("到期時間必須晚於現在");
+      return;
+    }
 
     try {
-      const rotated = await rotateAgentKey(agent.id);
+      const rotated = await rotateAgentKey(rotatingAgent.id, expiresAtIso);
       if (rotated.data.aesKey) {
         setRevealKey({ agentName: rotated.data.name, aesKey: rotated.data.aesKey });
       }
     } catch (error) {
       const detail = getApiErrorMessage(error);
-      alert(`輪替金鑰時發生錯誤${detail ? `：${detail}` : ""}`);
+      setRotateError(`輪替金鑰時發生錯誤${detail ? `：${detail}` : ""}`);
       return;
     }
 
+    setRotatingAgent(null);
     refresh();
   };
 
@@ -317,7 +336,7 @@ export function AgentsPage() {
                   使用中金鑰數
                 </th>
                 <th className="px-4 py-3 font-medium text-slate-600">
-                  到期時間
+                  金鑰到期時間
                 </th>
                 <th className="px-4 py-3 font-medium text-slate-600">狀態</th>
                 <th className="px-4 py-3 font-medium text-slate-600 text-right">
@@ -326,7 +345,10 @@ export function AgentsPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((agent) => (
+              {items.map((agent) => {
+                const currentKey = agent.keys[0];
+                const expired = isExpired(currentKey.expiresAt);
+                return (
                 <Fragment key={agent.id}>
                   <tr>
                     <td className="px-4 py-3 font-medium text-slate-900">
@@ -342,23 +364,19 @@ export function AgentsPage() {
                       {agent.activeKeysCount}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {formatDateTime(agent.expiresAt)}
+                      {formatDateTime(currentKey.expiresAt)}
                     </td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                           !agent.isActive
                             ? "bg-slate-100 text-slate-600"
-                            : isExpired(agent.expiresAt)
+                            : expired
                               ? "bg-red-100 text-red-700"
                               : "bg-green-100 text-green-700"
                         }`}
                       >
-                        {!agent.isActive
-                          ? "已停用"
-                          : isExpired(agent.expiresAt)
-                            ? "已過期"
-                            : "有效"}
+                        {!agent.isActive ? "已停用" : expired ? "已過期" : "有效"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -381,7 +399,7 @@ export function AgentsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleRotateKey(agent)}
+                        onClick={() => openRotateKey(agent)}
                         disabled={!agent.isActive}
                         className="cf-link mr-3 disabled:opacity-40"
                       >
@@ -414,6 +432,7 @@ export function AgentsPage() {
                           <thead>
                             <tr className="text-left text-xs text-slate-500">
                               <th className="py-1 pr-4 font-medium">建立時間</th>
+                              <th className="py-1 pr-4 font-medium">到期時間</th>
                               <th className="py-1 pr-4 font-medium">金鑰預覽</th>
                               <th className="py-1 pr-4 font-medium">狀態</th>
                               <th className="py-1 font-medium text-right">操作</th>
@@ -427,8 +446,11 @@ export function AgentsPage() {
                                   <td className="py-1 pr-4 text-slate-600">
                                     {formatDateTime(key.createdAt)}
                                   </td>
+                                  <td className="py-1 pr-4 text-slate-600">
+                                    {formatDateTime(key.expiresAt)}
+                                  </td>
                                   <td className="py-1 pr-4 font-mono text-slate-600">
-                                    {isCurrent ? agent.aesKeyPreview : "****"}
+                                    {key.aesKeyPreview}
                                   </td>
                                   <td className="py-1 pr-4">
                                     {key.isRevoked ? (
@@ -482,7 +504,8 @@ export function AgentsPage() {
                     </tr>
                   )}
                 </Fragment>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -523,21 +546,23 @@ export function AgentsPage() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="選填"
           />
-          <div className="space-y-1.5">
-            <label
-              htmlFor="expiresAt"
-              className="block text-sm font-medium text-slate-700"
-            >
-              到期時間
-            </label>
-            <input
-              id="expiresAt"
-              type="datetime-local"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
-              className="cf-input"
-            />
-          </div>
+          {!editing && (
+            <div className="space-y-1.5">
+              <label
+                htmlFor="expiresAt"
+                className="block text-sm font-medium text-slate-700"
+              >
+                金鑰到期時間
+              </label>
+              <input
+                id="expiresAt"
+                type="datetime-local"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                className="cf-input"
+              />
+            </div>
+          )}
           {!editing && (
             <p className="rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-500">
               儲存後將自動產生一組 256-bit AES KEY（Base64 編碼），僅此一次顯示明文。
@@ -550,6 +575,45 @@ export function AgentsPage() {
             <Button onClick={handleSave}>儲存</Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!rotatingAgent}
+        title="輪替金鑰"
+        onClose={() => setRotatingAgent(null)}
+      >
+        {rotatingAgent && (
+          <div className="space-y-4">
+            {rotateError && (
+              <div className="cf-alert cf-alert--error">{rotateError}</div>
+            )}
+            <p className="text-sm text-slate-600">
+              將為「{rotatingAgent.name}」產生新金鑰，請設定新金鑰的到期時間。輪替後請重新下載
+              .env 部署代理。
+            </p>
+            <div className="space-y-1.5">
+              <label
+                htmlFor="rotateExpiresAt"
+                className="block text-sm font-medium text-slate-700"
+              >
+                新金鑰到期時間
+              </label>
+              <input
+                id="rotateExpiresAt"
+                type="datetime-local"
+                value={rotateExpiresAt}
+                onChange={(e) => setRotateExpiresAt(e.target.value)}
+                className="cf-input"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="secondary" onClick={() => setRotatingAgent(null)}>
+                取消
+              </Button>
+              <Button onClick={confirmRotateKey}>確認輪替</Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <Modal
