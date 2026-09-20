@@ -8,7 +8,7 @@ import { Verify2FAPage } from './pages/Verify2FAPage'
 import { OrganizationsPage } from './pages/OrganizationsPage'
 import { ServicesPage } from './pages/ServicesPage'
 import { UsersPage } from './pages/UsersPage'
-import { OfflineKeysPage } from './pages/OfflineKeysPage'
+import { AgentsPage } from './pages/AgentsPage'
 import { ScoresPage } from './pages/ScoresPage'
 import { ServiceListPage } from './pages/ServiceListPage'
 import { MyOrganizationsPage } from './pages/MyOrganizationsPage'
@@ -43,7 +43,7 @@ export default function App() {
               <Route element={<AdminRoute />}>
                 <Route path="/organizations" element={<OrganizationsPage />} />
                 <Route path="/services" element={<ServicesPage />} />
-                <Route path="/offline-keys" element={<OfflineKeysPage />} />
+                <Route path="/agents" element={<AgentsPage />} />
                 <Route path="/users" element={<UsersPage />} />
                 <Route path="/scores" element={<ScoresPage />} />
               </Route>

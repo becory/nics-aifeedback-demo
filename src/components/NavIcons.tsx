@@ -51,6 +51,20 @@ export function KeyIcon({ className = 'h-5 w-5' }: { className?: string }) {
   )
 }
 
+export function AgentIcon({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M8.25 3v2.25M15.75 3v2.25M8.25 18.75V21M15.75 18.75V21M3 8.25h2.25M3 15.75h2.25M18.75 8.25H21M18.75 15.75H21M6.75 5.25h10.5a1.5 1.5 0 011.5 1.5v10.5a1.5 1.5 0 01-1.5 1.5H6.75a1.5 1.5 0 01-1.5-1.5V6.75a1.5 1.5 0 011.5-1.5z"
+      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 9h6v6H9z" />
+    </svg>
+  )
+}
+
 export function ListIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -5,7 +5,7 @@ import {
   OrgIcon,
   ServiceIcon,
   UserIcon,
-  KeyIcon,
+  AgentIcon,
   ListIcon,
   OverviewIcon,
   ScoreIcon,
@@ -13,8 +13,8 @@ import {
 
 const adminNavItems = [
   { to: "/organizations", label: "組織管理", Icon: OrgIcon },
+  { to: "/agents", label: "服務代理", Icon: AgentIcon },
   { to: "/services", label: "服務管理", Icon: ServiceIcon },
-  { to: "/offline-keys", label: "離線金鑰", Icon: KeyIcon },
   { to: "/users", label: "使用者管理", Icon: UserIcon },
   { to: "/scores", label: "分數管理", Icon: ScoreIcon },
 ];
