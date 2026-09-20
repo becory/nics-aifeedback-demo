@@ -50,6 +50,8 @@ export interface CreateUser extends User {
 export interface AgentKeyGeneration {
   id: string
   createdAt: string
+  expiresAt: string
+  aesKeyPreview: string
   isRevoked: boolean
   revokedAt?: string | null
 }
@@ -62,7 +64,6 @@ export interface Agent {
   description?: string | null
   aesKey?: string | null
   aesKeyPreview: string
-  expiresAt: string
   createdAt: string
   isActive: boolean
   activeKeysCount: number
@@ -80,7 +81,6 @@ export interface CreateAgentRequest {
 export interface UpdateAgentRequest {
   name: string
   description?: string
-  expiresAt: string
 }
 
 export interface ScoreConfig {

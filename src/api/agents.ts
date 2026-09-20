@@ -18,7 +18,8 @@ export const updateAgent = (id: string, agent: UpdateAgentRequest) => instance.p
 
 export const deleteAgent = (id: string) => instance.delete<null>(`/agents/${id}`)
 
-export const rotateAgentKey = (id: string) => instance.post<Agent>(`/agents/${id}/rotate-key`)
+export const rotateAgentKey = (id: string, expiresAt: string) =>
+  instance.post<Agent>(`/agents/${id}/rotate-key`, { expiresAt })
 
 export const revokeAgentKey = (id: string, keyId: string) => instance.post<Agent>(`/agents/${id}/keys/${keyId}/revoke`)
 
