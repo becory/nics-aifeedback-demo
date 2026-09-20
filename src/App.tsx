@@ -14,6 +14,7 @@ import { ServiceListPage } from './pages/ServiceListPage'
 import { MyOrganizationsPage } from './pages/MyOrganizationsPage'
 import { SecuritySettingsPage } from './pages/SecuritySettingsPage'
 import { FeedbackOverviewPage } from './pages/FeedbackOverviewPage'
+import { ImportPage } from './pages/ImportPage'
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/feedback-overview" element={<FeedbackOverviewPage />} />
+              <Route path="/import" element={<ImportPage />} />
               <Route path="/my-services" element={<ServiceListPage />} />
               <Route path="/my-organizations" element={<MyOrganizationsPage />} />
               <Route path="/feedbacks" element={<Navigate to="/feedback-overview" replace />} />

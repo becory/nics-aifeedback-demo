@@ -155,3 +155,32 @@ export interface DataResponse<T> {
   message?: string
   error?: string
 }
+
+export type ImportLogStatus = 'Succeeded' | 'PartiallySucceeded' | 'Failed'
+
+export interface ImportLog {
+  id: string
+  organizationId: string
+  agentId?: string | null
+  agentCode?: string | null
+  agentName?: string | null
+  keyGenerationId?: string | null
+  status: ImportLogStatus
+  requestedByUserId: string
+  requestedAt: string
+  completedAt?: string | null
+  totalRecordCount: number
+  succeededRecordCount: number
+  failedRecordCount: number
+  duplicateRecordCount: number
+  errorMessage?: string | null
+}
+
+export interface ImportLogLineError {
+  lineNumber: number
+  reason: string
+}
+
+export interface ImportLogDetail extends ImportLog {
+  failedLineSamples: ImportLogLineError[]
+}
