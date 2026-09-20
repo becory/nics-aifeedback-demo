@@ -14,14 +14,19 @@ export type UpdateOrganizationRequest = CreateOrganizationRequest
 
 export interface Service {
   id: string
-  name: string
+  agentId: string
+  agentName: string
+  agentCode: string
   organizationId: string
+  organizationName: string
+  name: string
   code: string
   host: string
+  isActive: boolean
 }
 
 export interface CreateServiceRequest {
-  organizationId: string
+  agentId: string
   name: string
   code: string
   host: string
@@ -42,23 +47,39 @@ export interface CreateUser extends User {
   initialPassword: string
 }
 
-export interface OfflineKey {
+export interface AgentKeyGeneration {
+  id: string
+  createdAt: string
+  isRevoked: boolean
+  revokedAt?: string | null
+}
+
+export interface Agent {
   id: string
   organizationId: string
-  description: string
-  aesKey: string
+  code: string
+  name: string
+  description?: string | null
+  aesKey?: string | null
+  aesKeyPreview: string
   expiresAt: string
   createdAt: string
+  isActive: boolean
+  activeKeysCount: number
+  keys: AgentKeyGeneration[]
 }
 
-export interface CreateOfflineKeyRequest {
+export interface CreateAgentRequest {
   organizationId: string
-  description: string
+  code: string
+  name: string
+  description?: string
   expiresAt: string
 }
 
-export interface UpdateOfflineKeyRequest {
-  description: string
+export interface UpdateAgentRequest {
+  name: string
+  description?: string
   expiresAt: string
 }
 
@@ -133,4 +154,47 @@ export interface DataResponse<T> {
   data: T
   message?: string
   error?: string
+}
+
+export type ImportLogStatus = 'Succeeded' | 'PartiallySucceeded' | 'Failed'
+
+export interface ImportLog {
+  id: string
+  organizationId: string
+  agentId?: string | null
+  agentCode?: string | null
+  agentName?: string | null
+  keyGenerationId?: string | null
+  keyPreview?: string | null
+  fileMd5: string
+  status: ImportLogStatus
+  requestedByUserId: string
+  requestedAt: string
+  completedAt?: string | null
+  dataRangeStart?: string | null
+  dataRangeEnd?: string | null
+  totalRecordCount: number
+  succeededRecordCount: number
+  failedRecordCount: number
+  duplicateRecordCount: number
+  errorMessage?: string | null
+}
+
+export interface ImportLogLineError {
+  lineNumber: number
+  reason: string
+}
+
+export interface ImportLogServiceSummary {
+  serviceId: string
+  totalCount: number
+  succeededCount: number
+  duplicateCount: number
+  failedCount: number
+  failedReason?: string | null
+}
+
+export interface ImportLogDetail extends ImportLog {
+  failedLineSamples: ImportLogLineError[]
+  serviceSummaries: ImportLogServiceSummary[]
 }

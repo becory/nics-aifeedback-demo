@@ -5,22 +5,24 @@ import {
   OrgIcon,
   ServiceIcon,
   UserIcon,
-  KeyIcon,
+  AgentIcon,
   ListIcon,
   OverviewIcon,
   ScoreIcon,
+  ImportIcon,
 } from "./NavIcons";
 
 const adminNavItems = [
   { to: "/organizations", label: "組織管理", Icon: OrgIcon },
+  { to: "/agents", label: "服務代理", Icon: AgentIcon },
   { to: "/services", label: "服務管理", Icon: ServiceIcon },
-  { to: "/offline-keys", label: "離線金鑰", Icon: KeyIcon },
   { to: "/users", label: "使用者管理", Icon: UserIcon },
   { to: "/scores", label: "分數管理", Icon: ScoreIcon },
 ];
 
 const userNavItems = [
   { to: "/feedback-overview", label: "回饋資料總覽", Icon: OverviewIcon },
+  { to: "/import", label: "資料匯入", Icon: ImportIcon },
   { to: "/my-organizations", label: "組織清單", Icon: OrgIcon },
   { to: "/my-services", label: "服務清單", Icon: ListIcon },
 ];
