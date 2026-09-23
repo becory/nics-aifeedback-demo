@@ -58,7 +58,9 @@ export function AgentDetailPanel({
   if (!agent) return null;
 
   const orgName = organizations.find((o) => o.id === agent.organizationId)?.name ?? "—";
-  const currentKey = agent.keys[0];
+  const isLocal = agent.deploymentType === "Local";
+  // Cloud Agents have no key generations, so there is no current key.
+  const currentKey = agent.keys[0] as (typeof agent.keys)[number] | undefined;
 
   return (
     <>
@@ -80,30 +82,38 @@ export function AgentDetailPanel({
           {agent.description || "—"}
         </p>
         <p>
-          <span className="text-slate-500">金鑰到期時間：</span>
-          {formatDisplayTime(currentKey.expiresAt)}
+          <span className="text-slate-500">部署類型：</span>
+          {isLocal ? "地端（Local）" : "雲端（Cloud）"}
         </p>
         <p>
           <span className="text-slate-500">狀態：</span>
           {!agent.isActive
             ? "已停用"
-            : isAgentExpired(currentKey.expiresAt)
+            : currentKey && isAgentExpired(currentKey.expiresAt)
               ? "已過期"
               : "有效"}
         </p>
-        <p>
-          <span className="text-slate-500">使用中金鑰數：</span>
-          {agent.activeKeysCount}
-        </p>
-        <p>
-          <span className="text-slate-500">金鑰預覽：</span>
-          <span className="font-mono">{agent.aesKeyPreview}</span>
-        </p>
+        {isLocal && (
+          <>
+            <p>
+              <span className="text-slate-500">金鑰到期時間：</span>
+              {currentKey ? formatDisplayTime(currentKey.expiresAt) : "—"}
+            </p>
+            <p>
+              <span className="text-slate-500">使用中金鑰數：</span>
+              {agent.activeKeysCount}
+            </p>
+            <p>
+              <span className="text-slate-500">金鑰預覽：</span>
+              <span className="font-mono">{agent.aesKeyPreview ?? "—"}</span>
+            </p>
+          </>
+        )}
       </div>
       {linkToAgentsPage && serviceId && (
         <div className="mt-3 flex items-center justify-between">
           <p className="text-xs text-slate-500">
-            金鑰輪替、撤銷與 .env 下載請至「服務代理」頁面操作。
+            {isLocal ? "金鑰輪替、撤銷與 .env 下載請至「服務代理」頁面操作。" : ".env 下載請至「服務代理」頁面操作。"}
           </p>
           <Link to={`/agents?serviceId=${serviceId}`} className="cf-link shrink-0 text-xs">
             前往服務代理頁面 →

@@ -56,14 +56,19 @@ export interface AgentKeyGeneration {
   revokedAt?: string | null
 }
 
+/** Local = on-prem Agent with AES key material; Cloud = cloud-hosted backend with no keys. */
+export type AgentDeploymentType = 'Local' | 'Cloud'
+
 export interface Agent {
   id: string
   organizationId: string
   code: string
   name: string
   description?: string | null
+  deploymentType: AgentDeploymentType
   aesKey?: string | null
-  aesKeyPreview: string
+  /** Null for a Cloud Agent (no key generation). */
+  aesKeyPreview?: string | null
   createdAt: string
   isActive: boolean
   activeKeysCount: number
@@ -75,7 +80,9 @@ export interface CreateAgentRequest {
   code: string
   name: string
   description?: string
-  expiresAt: string
+  deploymentType: AgentDeploymentType
+  /** Required for Local (first key generation's expiry); ignored for Cloud. */
+  expiresAt?: string
 }
 
 export interface UpdateAgentRequest {
