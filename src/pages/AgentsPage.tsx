@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import type { Agent, Organization, Service } from "../types";
+import type { Agent, AgentDeploymentType, Organization, Service } from "../types";
 import {
   createAgent,
   deleteAgent,
@@ -44,6 +44,11 @@ function isExpired(expiresAt: string): boolean {
   return new Date(expiresAt).getTime() <= Date.now();
 }
 
+const DEPLOYMENT_TYPE_LABELS: Record<AgentDeploymentType, string> = {
+  Local: "地端（Local）",
+  Cloud: "雲端（Cloud）",
+};
+
 export function AgentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<Agent[]>([]);
@@ -59,6 +64,7 @@ export function AgentsPage() {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [deploymentType, setDeploymentType] = useState<AgentDeploymentType>("Local");
   const [expiresAt, setExpiresAt] = useState("");
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -110,6 +116,7 @@ export function AgentsPage() {
     setCode("");
     setName("");
     setDescription("");
+    setDeploymentType("Local");
     setExpiresAt(defaultExpiresAt());
     setError("");
     setModalOpen(true);
@@ -121,6 +128,7 @@ export function AgentsPage() {
     setCode(agent.code);
     setName(agent.name);
     setDescription(agent.description ?? "");
+    setDeploymentType(agent.deploymentType);
     setError("");
     setModalOpen(true);
   };
@@ -138,7 +146,8 @@ export function AgentsPage() {
       setError("請輸入代理名稱");
       return;
     }
-    if (!editing && !expiresAt) {
+    const isLocal = deploymentType === "Local";
+    if (!editing && isLocal && !expiresAt) {
       setError("請設定金鑰到期時間");
       return;
     }
@@ -150,10 +159,13 @@ export function AgentsPage() {
           description: description.trim() || undefined,
         });
       } else {
-        const expiresAtIso = new Date(expiresAt).toISOString();
-        if (new Date(expiresAtIso).getTime() <= Date.now()) {
-          setError("到期時間必須晚於現在");
-          return;
+        let expiresAtIso: string | undefined;
+        if (isLocal) {
+          expiresAtIso = new Date(expiresAt).toISOString();
+          if (new Date(expiresAtIso).getTime() <= Date.now()) {
+            setError("到期時間必須晚於現在");
+            return;
+          }
         }
 
         const created = await createAgent({
@@ -161,6 +173,7 @@ export function AgentsPage() {
           code: code.trim().toUpperCase(),
           name: name.trim(),
           description: description.trim() || undefined,
+          deploymentType,
           expiresAt: expiresAtIso,
         });
         if (created.data.aesKey) {
@@ -333,6 +346,9 @@ export function AgentsPage() {
                   所屬組織
                 </th>
                 <th className="px-4 py-3 font-medium text-slate-600">
+                  部署類型
+                </th>
+                <th className="px-4 py-3 font-medium text-slate-600">
                   使用中金鑰數
                 </th>
                 <th className="px-4 py-3 font-medium text-slate-600">
@@ -346,8 +362,10 @@ export function AgentsPage() {
             </thead>
             <tbody>
               {items.map((agent) => {
-                const currentKey = agent.keys[0];
-                const expired = isExpired(currentKey.expiresAt);
+                const isLocal = agent.deploymentType === "Local";
+                // Cloud Agents have no key generations, so there is no current key.
+                const currentKey = agent.keys[0] as (typeof agent.keys)[number] | undefined;
+                const expired = currentKey ? isExpired(currentKey.expiresAt) : false;
                 return (
                 <Fragment key={agent.id}>
                   <tr>
@@ -361,10 +379,13 @@ export function AgentsPage() {
                       {getOrgName(agent.organizationId)}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {agent.activeKeysCount}
+                      {DEPLOYMENT_TYPE_LABELS[agent.deploymentType] ?? agent.deploymentType}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {formatDateTime(currentKey.expiresAt)}
+                      {isLocal ? agent.activeKeysCount : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {currentKey ? formatDateTime(currentKey.expiresAt) : "—"}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -387,7 +408,11 @@ export function AgentsPage() {
                         }
                         className="cf-link mr-3"
                       >
-                        {expandedId === agent.id ? "收合金鑰" : "顯示所有key"}
+                        {expandedId === agent.id
+                          ? "收合"
+                          : isLocal
+                            ? "顯示所有key"
+                            : "顯示詳情"}
                       </button>
                       <button
                         type="button"
@@ -397,14 +422,16 @@ export function AgentsPage() {
                       >
                         下載 .env
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => openRotateKey(agent)}
-                        disabled={!agent.isActive}
-                        className="cf-link mr-3 disabled:opacity-40"
-                      >
-                        輪替金鑰
-                      </button>
+                      {isLocal && (
+                        <button
+                          type="button"
+                          onClick={() => openRotateKey(agent)}
+                          disabled={!agent.isActive}
+                          className="cf-link mr-3 disabled:opacity-40"
+                        >
+                          輪替金鑰
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => openEdit(agent)}
@@ -424,7 +451,9 @@ export function AgentsPage() {
                   </tr>
                   {expandedId === agent.id && (
                     <tr>
-                      <td colSpan={7} className="bg-slate-50 px-4 py-4">
+                      <td colSpan={8} className="bg-slate-50 px-4 py-4">
+                        {isLocal ? (
+                        <>
                         <p className="mb-2 text-xs font-medium text-slate-500">
                           所有金鑰世代（僅新建立或剛輪替的金鑰會顯示完整明文，其餘僅顯示遮罩預覽）
                         </p>
@@ -484,6 +513,12 @@ export function AgentsPage() {
                             })}
                           </tbody>
                         </table>
+                        </>
+                        ) : (
+                          <p className="text-xs text-slate-500">
+                            雲端代理不持有 AES 金鑰，.env 僅包含 DEPLOYMENT_MODE、AGENT_ID 與 AGENT_UUID。
+                          </p>
+                        )}
                         {getServicesForAgent(agent.id).length > 0 && (
                           <p className="mt-3 text-xs text-slate-500">
                             相關服務：
@@ -535,6 +570,16 @@ export function AgentsPage() {
             placeholder="例如：AGENT01"
             disabled={!!editing}
           />
+          <Select
+            label="部署類型"
+            value={deploymentType}
+            onChange={(e) => setDeploymentType(e.target.value as AgentDeploymentType)}
+            disabled={!!editing}
+            options={(Object.keys(DEPLOYMENT_TYPE_LABELS) as AgentDeploymentType[]).map((t) => ({
+              value: t,
+              label: DEPLOYMENT_TYPE_LABELS[t],
+            }))}
+          />
           <Input
             label="代理名稱"
             value={name}
@@ -546,7 +591,7 @@ export function AgentsPage() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="選填"
           />
-          {!editing && (
+          {!editing && deploymentType === "Local" && (
             <div className="space-y-1.5">
               <label
                 htmlFor="expiresAt"
@@ -565,7 +610,9 @@ export function AgentsPage() {
           )}
           {!editing && (
             <p className="rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-500">
-              儲存後將自動產生一組 256-bit AES KEY（Base64 編碼），僅此一次顯示明文。
+              {deploymentType === "Local"
+                ? "儲存後將自動產生一組 256-bit AES KEY（Base64 編碼），僅此一次顯示明文。"
+                : "雲端代理不產生 AES 金鑰。部署類型建立後無法變更。"}
             </p>
           )}
           <div className="flex justify-end gap-2 pt-2">
