@@ -130,7 +130,7 @@ export function ServiceListPage() {
                         disabled={!svc.agentId}
                         className="cf-link disabled:opacity-40"
                       >
-                        {expandedId === svc.id ? "收合代理資料" : "服務代理詳情"}
+                        {expandedId === svc.id ? "收合" : "SDK 與代理詳情"}
                       </button>
                     </td>
                   </tr>
@@ -140,6 +140,7 @@ export function ServiceListPage() {
                         <AgentDetailPanel
                           agentId={svc.agentId}
                           organizations={organizations}
+                          serviceCode={svc.code}
                         />
                       </td>
                     </tr>

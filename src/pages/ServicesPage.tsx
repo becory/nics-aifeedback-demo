@@ -272,7 +272,7 @@ export function ServicesPage() {
                         disabled={!svc.agentId}
                         className="cf-link mr-3 disabled:opacity-40"
                       >
-                        {expandedId === svc.id ? "收合代理資料" : "服務代理詳情"}
+                        {expandedId === svc.id ? "收合" : "SDK 與代理詳情"}
                       </button>
                       <button
                         type="button"
@@ -296,6 +296,7 @@ export function ServicesPage() {
                         <AgentDetailPanel
                           agentId={svc.agentId}
                           organizations={organizations}
+                          serviceCode={svc.code}
                           serviceId={svc.id}
                           linkToAgentsPage
                         />

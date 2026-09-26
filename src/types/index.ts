@@ -17,6 +17,8 @@ export interface Service {
   agentId: string
   agentName: string
   agentCode: string
+  /** The owning Agent's ApiUrl; null until an admin sets it. */
+  agentApiUrl?: string | null
   organizationId: string
   organizationName: string
   name: string
