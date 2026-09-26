@@ -66,6 +66,8 @@ export interface Agent {
   name: string
   description?: string | null
   deploymentType: AgentDeploymentType
+  /** Public base URL the frontend SDK connects to. Null only on Agents created before it existed. */
+  apiUrl?: string | null
   aesKey?: string | null
   /** Null for a Cloud Agent (no key generation). */
   aesKeyPreview?: string | null
@@ -83,11 +85,13 @@ export interface CreateAgentRequest {
   deploymentType: AgentDeploymentType
   /** Required for Local (first key generation's expiry); ignored for Cloud. */
   expiresAt?: string
+  apiUrl: string
 }
 
 export interface UpdateAgentRequest {
   name: string
   description?: string
+  apiUrl: string
 }
 
 export interface ScoreConfig {
