@@ -4,7 +4,6 @@ import { getAgentById } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import { formatDisplayTime } from "../lib/datetime";
 import type { Agent, Organization } from "../types";
-import { SdkSnippets } from "./SdkSnippets";
 import { LoadingState } from "./ui";
 
 function isAgentExpired(expiresAt: string): boolean {
@@ -17,8 +16,6 @@ interface AgentDetailPanelProps {
   /** Deep-links to the "服務代理" management page, filtered to this service — admin only. */
   serviceId?: string;
   linkToAgentsPage?: boolean;
-  /** When given, SDK integration snippets for this service are shown below the Agent details. */
-  serviceCode?: string;
 }
 
 export function AgentDetailPanel({
@@ -26,7 +23,6 @@ export function AgentDetailPanel({
   organizations,
   serviceId,
   linkToAgentsPage = false,
-  serviceCode,
 }: AgentDetailPanelProps) {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,15 +118,6 @@ export function AgentDetailPanel({
           <Link to={`/agents?serviceId=${serviceId}`} className="cf-link shrink-0 text-xs">
             前往服務代理頁面 →
           </Link>
-        </div>
-      )}
-      {serviceCode && (
-        <div className="mt-4 border-t border-slate-200 pt-4">
-          <SdkSnippets
-            serviceCode={serviceCode}
-            deploymentType={agent.deploymentType}
-            apiUrl={agent.apiUrl}
-          />
         </div>
       )}
     </>

@@ -4,6 +4,7 @@ import { getAgents, getOrganizations, getServices } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import type { Agent, Organization, Service } from "../types";
 import { AgentDetailPanel } from "../components/AgentDetailPanel";
+import { ServiceSdkModal } from "../components/ServiceSdkModal";
 import { EmptyState, LoadingState, PageHeader, Select } from "../components/ui";
 
 export function ServiceListPage() {
@@ -13,6 +14,7 @@ export function ServiceListPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [agentFilter, setAgentFilter] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sdkService, setSdkService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -128,9 +130,17 @@ export function ServiceListPage() {
                           setExpandedId(expandedId === svc.id ? null : svc.id)
                         }
                         disabled={!svc.agentId}
+                        className="cf-link mr-3 disabled:opacity-40"
+                      >
+                        {expandedId === svc.id ? "收合代理資料" : "服務代理詳情"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSdkService(svc)}
+                        disabled={!svc.agentId}
                         className="cf-link disabled:opacity-40"
                       >
-                        {expandedId === svc.id ? "收合" : "SDK 與代理詳情"}
+                        SDK
                       </button>
                     </td>
                   </tr>
@@ -140,7 +150,6 @@ export function ServiceListPage() {
                         <AgentDetailPanel
                           agentId={svc.agentId}
                           organizations={organizations}
-                          serviceCode={svc.code}
                         />
                       </td>
                     </tr>
@@ -151,6 +160,8 @@ export function ServiceListPage() {
           </table>
         </div>
       )}
+
+      <ServiceSdkModal service={sdkService} onClose={() => setSdkService(null)} />
     </>
   );
 }
