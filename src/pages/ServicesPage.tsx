@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import { AgentDetailPanel } from "../components/AgentDetailPanel";
+import { ServiceSdkModal } from "../components/ServiceSdkModal";
 import { Modal } from "../components/Modal";
 import {
   Button,
@@ -29,6 +30,7 @@ export function ServicesPage() {
   const [agentFilter, setAgentFilter] = useState(searchParams.get("agentId") ?? "");
   const [codeFilter, setCodeFilter] = useState(searchParams.get("code") ?? "");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sdkService, setSdkService] = useState<Service | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
   const [name, setName] = useState("");
@@ -276,6 +278,14 @@ export function ServicesPage() {
                       </button>
                       <button
                         type="button"
+                        onClick={() => setSdkService(svc)}
+                        disabled={!svc.agentId}
+                        className="cf-link mr-3 disabled:opacity-40"
+                      >
+                        SDK
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => openEdit(svc)}
                         className="cf-link mr-3"
                       >
@@ -308,6 +318,8 @@ export function ServicesPage() {
           </table>
         </div>
       )}
+
+      <ServiceSdkModal service={sdkService} onClose={() => setSdkService(null)} />
 
       <Modal
         open={modalOpen}

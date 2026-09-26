@@ -14,6 +14,7 @@ import {
 } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import { formatDisplayTime } from "../lib/datetime";
+import { CloudSdkSettingsModal } from "../components/CloudSdkSettingsModal";
 import { Modal } from "../components/Modal";
 import {
   Button,
@@ -44,6 +45,25 @@ function isExpired(expiresAt: string): boolean {
   return new Date(expiresAt).getTime() <= Date.now();
 }
 
+// Mirrors the backend's ApiUrlFormat: absolute http/https URL, a path is fine, but no query
+// string, fragment or credentials (the SDK appends "/api" etc. to it).
+function isValidApiUrl(value: string) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  return (
+    (url.protocol === "http:" || url.protocol === "https:") &&
+    !!url.hostname &&
+    !url.search &&
+    !url.hash &&
+    !url.username &&
+    !url.password
+  );
+}
+
 const DEPLOYMENT_TYPE_LABELS: Record<AgentDeploymentType, string> = {
   Local: "地端（Local）",
   Cloud: "雲端（Cloud）",
@@ -66,9 +86,12 @@ export function AgentsPage() {
   const [description, setDescription] = useState("");
   const [deploymentType, setDeploymentType] = useState<AgentDeploymentType>("Local");
   const [expiresAt, setExpiresAt] = useState("");
+  const [apiUrl, setApiUrl] = useState("");
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const [cloudSdkOpen, setCloudSdkOpen] = useState(false);
 
   const [revealKey, setRevealKey] = useState<{ agentName: string; aesKey: string } | null>(null);
 
@@ -118,6 +141,7 @@ export function AgentsPage() {
     setDescription("");
     setDeploymentType("Local");
     setExpiresAt(defaultExpiresAt());
+    setApiUrl("");
     setError("");
     setModalOpen(true);
   };
@@ -129,6 +153,7 @@ export function AgentsPage() {
     setName(agent.name);
     setDescription(agent.description ?? "");
     setDeploymentType(agent.deploymentType);
+    setApiUrl(agent.apiUrl ?? "");
     setError("");
     setModalOpen(true);
   };
@@ -146,6 +171,14 @@ export function AgentsPage() {
       setError("請輸入代理名稱");
       return;
     }
+    if (!apiUrl.trim()) {
+      setError("請輸入 API URL");
+      return;
+    }
+    if (!isValidApiUrl(apiUrl.trim())) {
+      setError("API URL 須為 http 或 https 開頭的完整網址，且不可包含查詢字串、# 片段或帳號密碼");
+      return;
+    }
     const isLocal = deploymentType === "Local";
     if (!editing && isLocal && !expiresAt) {
       setError("請設定金鑰到期時間");
@@ -157,6 +190,7 @@ export function AgentsPage() {
         await updateAgent(editing.id, {
           name: name.trim(),
           description: description.trim() || undefined,
+          apiUrl: apiUrl.trim(),
         });
       } else {
         let expiresAtIso: string | undefined;
@@ -175,6 +209,7 @@ export function AgentsPage() {
           description: description.trim() || undefined,
           deploymentType,
           expiresAt: expiresAtIso,
+          apiUrl: apiUrl.trim(),
         });
         if (created.data.aesKey) {
           setRevealKey({ agentName: created.data.name, aesKey: created.data.aesKey });
@@ -285,9 +320,14 @@ export function AgentsPage() {
         title="服務代理"
         description="管理各組織的服務代理，供部署端下載 .env 設定檔"
         action={
-          <Button onClick={openCreate} disabled={organizations.length === 0}>
-            新增服務代理
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setCloudSdkOpen(true)}>
+              雲端 SDK 設定
+            </Button>
+            <Button onClick={openCreate} disabled={organizations.length === 0}>
+              新增服務代理
+            </Button>
+          </div>
         }
       />
 
@@ -452,6 +492,14 @@ export function AgentsPage() {
                   {expandedId === agent.id && (
                     <tr>
                       <td colSpan={8} className="bg-slate-50 px-4 py-4">
+                        <p className="mb-3 text-xs text-slate-500">
+                          API URL：
+                          {agent.apiUrl ? (
+                            <span className="font-mono text-slate-700">{agent.apiUrl}</span>
+                          ) : (
+                            <span className="text-amber-600">尚未設定，請編輯補上</span>
+                          )}
+                        </p>
                         {isLocal ? (
                         <>
                         <p className="mb-2 text-xs font-medium text-slate-500">
@@ -546,6 +594,8 @@ export function AgentsPage() {
         </div>
       )}
 
+      <CloudSdkSettingsModal open={cloudSdkOpen} onClose={() => setCloudSdkOpen(false)} />
+
       <Modal
         open={modalOpen}
         title={editing ? "編輯服務代理" : "新增服務代理"}
@@ -590,6 +640,12 @@ export function AgentsPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="選填"
+          />
+          <Input
+            label="API URL"
+            value={apiUrl}
+            onChange={(e) => setApiUrl(e.target.value)}
+            placeholder="例如：https://agent.example.gov.tw"
           />
           {!editing && deploymentType === "Local" && (
             <div className="space-y-1.5">

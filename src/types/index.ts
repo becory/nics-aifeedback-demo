@@ -17,6 +17,8 @@ export interface Service {
   agentId: string
   agentName: string
   agentCode: string
+  /** The owning Agent's ApiUrl; null until an admin sets it. */
+  agentApiUrl?: string | null
   organizationId: string
   organizationName: string
   name: string
@@ -66,6 +68,8 @@ export interface Agent {
   name: string
   description?: string | null
   deploymentType: AgentDeploymentType
+  /** Public base URL the frontend SDK connects to. Null only on Agents created before it existed. */
+  apiUrl?: string | null
   aesKey?: string | null
   /** Null for a Cloud Agent (no key generation). */
   aesKeyPreview?: string | null
@@ -83,11 +87,27 @@ export interface CreateAgentRequest {
   deploymentType: AgentDeploymentType
   /** Required for Local (first key generation's expiry); ignored for Cloud. */
   expiresAt?: string
+  apiUrl: string
 }
 
 export interface UpdateAgentRequest {
   name: string
   description?: string
+  apiUrl: string
+}
+
+/**
+ * System-wide SDK settings (one per deployment, not per Agent). Every Cloud Agent's services load
+ * the SDK from CloudSdkScriptUrl; Local Agents serve their own copy at {apiUrl}/sdk/....
+ */
+export interface SdkSettings {
+  cloudSdkScriptUrl: string
+  /** Null while an admin has never saved it (cloudSdkScriptUrl is then the built-in default). */
+  updatedAt?: string | null
+}
+
+export interface UpdateSdkSettingsRequest {
+  cloudSdkScriptUrl: string
 }
 
 export interface ScoreConfig {
