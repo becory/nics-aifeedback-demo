@@ -176,6 +176,8 @@ export interface ImportLog {
   fileMd5: string
   status: ImportLogStatus
   requestedByUserId: string
+  requestedByEmail?: string | null
+  requestedByName?: string | null
   requestedAt: string
   completedAt?: string | null
   dataRangeStart?: string | null
