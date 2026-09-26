@@ -182,6 +182,7 @@ export function ImportPage() {
             {lastLog.agentName
               ? `${lastLog.agentName} (${lastLog.agentCode})，金鑰 ${lastLog.keyPreview ?? "—"}`
               : "—"}
+            ，{lastLog.requestedByName ?? lastLog.requestedByEmail ?? "—"}
             ，{formatDisplayTime(lastLog.requestedAt)}
           </p>
         )}
@@ -256,6 +257,7 @@ export function ImportPage() {
             <thead>
               <tr>
                 <th className="px-4 py-3 font-medium text-slate-600">時間</th>
+                <th className="px-4 py-3 font-medium text-slate-600">匯入者</th>
                 <th className="px-4 py-3 font-medium text-slate-600">代理</th>
                 <th className="px-4 py-3 font-medium text-slate-600">金鑰</th>
                 <th className="px-4 py-3 font-medium text-slate-600">資料範圍</th>
@@ -275,6 +277,18 @@ export function ImportPage() {
                   <tr>
                     <td className="px-4 py-3 text-slate-600">
                       {formatDisplayTime(log.requestedAt)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {log.requestedByName ? (
+                        <>
+                          <div>{log.requestedByName}</div>
+                          {log.requestedByEmail && (
+                            <div className="text-xs text-slate-400">{log.requestedByEmail}</div>
+                          )}
+                        </>
+                      ) : (
+                        log.requestedByEmail ?? "—"
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       {log.agentName ? `${log.agentName} (${log.agentCode})` : "—"}
@@ -308,7 +322,7 @@ export function ImportPage() {
                   </tr>
                   {expandedId === log.id && (
                     <tr>
-                      <td colSpan={10} className="bg-slate-50 px-4 py-4">
+                      <td colSpan={11} className="bg-slate-50 px-4 py-4">
                         {expandedLoading ? (
                           <LoadingState />
                         ) : expandedError ? (
