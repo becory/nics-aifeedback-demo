@@ -96,6 +96,20 @@ export interface UpdateAgentRequest {
   apiUrl: string
 }
 
+/**
+ * System-wide SDK settings (one per deployment, not per Agent). Every Cloud Agent's services load
+ * the SDK from CloudSdkScriptUrl; Local Agents serve their own copy at {apiUrl}/sdk/....
+ */
+export interface SdkSettings {
+  cloudSdkScriptUrl: string
+  /** Null while an admin has never saved it (cloudSdkScriptUrl is then the built-in default). */
+  updatedAt?: string | null
+}
+
+export interface UpdateSdkSettingsRequest {
+  cloudSdkScriptUrl: string
+}
+
 export interface ScoreConfig {
   id: string
   name: string

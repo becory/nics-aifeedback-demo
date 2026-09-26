@@ -14,6 +14,7 @@ import {
 } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import { formatDisplayTime } from "../lib/datetime";
+import { CloudSdkSettingsModal } from "../components/CloudSdkSettingsModal";
 import { Modal } from "../components/Modal";
 import {
   Button,
@@ -89,6 +90,8 @@ export function AgentsPage() {
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const [cloudSdkOpen, setCloudSdkOpen] = useState(false);
 
   const [revealKey, setRevealKey] = useState<{ agentName: string; aesKey: string } | null>(null);
 
@@ -317,9 +320,14 @@ export function AgentsPage() {
         title="服務代理"
         description="管理各組織的服務代理，供部署端下載 .env 設定檔"
         action={
-          <Button onClick={openCreate} disabled={organizations.length === 0}>
-            新增服務代理
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setCloudSdkOpen(true)}>
+              雲端 SDK 設定
+            </Button>
+            <Button onClick={openCreate} disabled={organizations.length === 0}>
+              新增服務代理
+            </Button>
+          </div>
         }
       />
 
@@ -585,6 +593,8 @@ export function AgentsPage() {
           </table>
         </div>
       )}
+
+      <CloudSdkSettingsModal open={cloudSdkOpen} onClose={() => setCloudSdkOpen(false)} />
 
       <Modal
         open={modalOpen}

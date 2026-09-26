@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 import type { AgentDeploymentType } from "../types";
 
-// Cloud Agents don't serve the SDK themselves, so their services load it from the public CDN.
-const CDN_SDK_SRC =
-  "https://cdn.jsdelivr.net/gh/nics-tw/aifeedback-sdk@1.0.0/dist/feedback-sdk.min.js";
-
 const AGENT_HOST_PLACEHOLDER = "<agent-host>";
+const SDK_SCRIPT_URL_PLACEHOLDER = "<sdk-script-url>";
 
 const USAGE_EXAMPLE = `async function submitFeedback(feedbackData) {
   try {
@@ -64,12 +61,17 @@ interface SdkSnippetsProps {
   deploymentType: AgentDeploymentType;
   /** The owning Agent's ApiUrl (no trailing slash); null until an admin sets it. */
   apiUrl?: string | null;
+  /** Cloud only: the system-wide SDK script URL (SdkSettings.cloudSdkScriptUrl). */
+  cloudSdkScriptUrl?: string | null;
 }
 
-export function SdkSnippets({ serviceCode, deploymentType, apiUrl }: SdkSnippetsProps) {
+export function SdkSnippets({ serviceCode, deploymentType, apiUrl, cloudSdkScriptUrl }: SdkSnippetsProps) {
   const isLocal = deploymentType === "Local";
   const base = apiUrl || AGENT_HOST_PLACEHOLDER;
-  const scriptSrc = isLocal ? `${base}/sdk/feedback-sdk.min.js` : CDN_SDK_SRC;
+  // A Local Agent serves the SDK itself; every Cloud Agent shares the one CDN URL an admin set.
+  const scriptSrc = isLocal
+    ? `${base}/sdk/feedback-sdk.min.js`
+    : cloudSdkScriptUrl || SDK_SCRIPT_URL_PLACEHOLDER;
 
   const loadSnippet = `<script src="${scriptSrc}"></script>`;
   const initSnippet = `<script>
@@ -81,10 +83,14 @@ export function SdkSnippets({ serviceCode, deploymentType, apiUrl }: SdkSnippets
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium text-slate-700">SDK 串接語法</p>
       {!apiUrl && (
         <p className="text-xs text-amber-600">
           此服務代理尚未設定 API URL，以下語法中的 {AGENT_HOST_PLACEHOLDER} 請替換為代理的實際網址。
+        </p>
+      )}
+      {!isLocal && !cloudSdkScriptUrl && (
+        <p className="text-xs text-amber-600">
+          無法取得雲端 SDK 載入網址，以下語法中的 {SDK_SCRIPT_URL_PLACEHOLDER} 請替換為實際網址。
         </p>
       )}
       <CodeBlock
