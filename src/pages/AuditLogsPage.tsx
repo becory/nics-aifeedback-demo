@@ -250,28 +250,22 @@ export function AuditLogsPage() {
 
       <div className="cf-card mb-4 p-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-1.5">
-            <label htmlFor="audit-from" className="block text-sm font-medium text-slate-700">
-              開始時間
-            </label>
-            <input
+          <div>
+            <Input
               id="audit-from"
+              label="開始時間"
               type="datetime-local"
               value={filters.from}
               onChange={(e) => update("from", e.target.value)}
-              className="cf-input"
             />
           </div>
-          <div className="space-y-1.5">
-            <label htmlFor="audit-to" className="block text-sm font-medium text-slate-700">
-              結束時間（留空表示至今）
-            </label>
-            <input
+          <div>
+            <Input
               id="audit-to"
+              label="結束時間（留空表示至今）"
               type="datetime-local"
               value={filters.to}
               onChange={(e) => update("to", e.target.value)}
-              className="cf-input"
             />
           </div>
         </div>
@@ -289,20 +283,22 @@ export function AuditLogsPage() {
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <CheckboxGroup
-            label="事件類別（未勾選表示全部）"
-            options={AUDIT_EVENT_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
-            values={filters.categories}
-            onChange={(values) => update("categories", values)}
-          />
-          <div className="space-y-4">
+          <div>
+            <CheckboxGroup
+              label="事件類別（未勾選表示全部）"
+              options={AUDIT_EVENT_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
+              values={filters.categories}
+              onChange={(values) => update("categories", values)}
+            />
+          </div>
+          <div>
             <Select
               label="最低等級"
               value={filters.minSeverity}
               onChange={(e) => update("minSeverity", e.target.value)}
               options={SEVERITY_OPTIONS}
             />
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={filters.hideAuditQueries}
@@ -312,7 +308,7 @@ export function AuditLogsPage() {
               隱藏「查詢稽核日誌」事件
             </label>
           </div>
-          <div className="space-y-4">
+          <div>
             <Select
               label="操作者"
               value={filters.userId}
@@ -337,36 +333,44 @@ export function AuditLogsPage() {
         </button>
         {showAdvanced && (
           <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Select
-              label="對象使用者"
-              value={filters.targetUserId}
-              onChange={(e) => update("targetUserId", e.target.value)}
-              options={userOptions}
-            />
-            <Select
-              label="組織"
-              value={filters.organizationId}
-              onChange={(e) => update("organizationId", e.target.value)}
-              options={[
-                { value: "", label: "全部" },
-                ...organizations.map((o) => ({ value: o.id, label: `${o.name} (${o.code})` })),
-              ]}
-            />
-            <Select
-              label="服務代理"
-              value={filters.agentId}
-              onChange={(e) => update("agentId", e.target.value)}
-              options={[
-                { value: "", label: "全部" },
-                ...agents.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })),
-              ]}
-            />
-            <Input
-              label="IP"
-              value={filters.clientIp}
-              onChange={(e) => update("clientIp", e.target.value)}
-              placeholder="例如：203.0.113.5"
-            />
+            <div>
+              <Select
+                label="對象使用者"
+                value={filters.targetUserId}
+                onChange={(e) => update("targetUserId", e.target.value)}
+                options={userOptions}
+              />
+            </div>
+            <div>
+              <Select
+                label="組織"
+                value={filters.organizationId}
+                onChange={(e) => update("organizationId", e.target.value)}
+                options={[
+                  { value: "", label: "全部" },
+                  ...organizations.map((o) => ({ value: o.id, label: `${o.name} (${o.code})` })),
+                ]}
+              />
+            </div>
+            <div>
+              <Select
+                label="服務代理"
+                value={filters.agentId}
+                onChange={(e) => update("agentId", e.target.value)}
+                options={[
+                  { value: "", label: "全部" },
+                  ...agents.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })),
+                ]}
+              />
+            </div>
+            <div>
+              <Input
+                label="IP"
+                value={filters.clientIp}
+                onChange={(e) => update("clientIp", e.target.value)}
+                placeholder="例如：203.0.113.5"
+              />
+            </div>
           </div>
         )}
 
