@@ -1,5 +1,5 @@
 import type { DataResponse, Feedback } from "../types";
-import { instance } from "./api";
+import { instance, serializeRepeatedParams } from "./api";
 
 // Multi-value fields accept repeated query params, e.g. ?device=iOS&device=-Windows
 // meaning "device is iOS, and is not Windows". A bare value includes it (OR'd with
@@ -25,25 +25,10 @@ export interface GetFeedbacksParams extends FeedbackFilterParams {
   pageSize?: number;
 }
 
-function serializeFeedbackParams(params: Record<string, unknown>): string {
-  const usp = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null) continue;
-    if (Array.isArray(value)) {
-      for (const v of value) {
-        if (v !== undefined && v !== null) usp.append(key, String(v));
-      }
-    } else {
-      usp.append(key, String(value));
-    }
-  }
-  return usp.toString();
-}
-
 export const getFeedbacks = (params?: GetFeedbacksParams) =>
   instance.get<DataResponse<Feedback[]>>("/feedback", {
     params,
-    paramsSerializer: serializeFeedbackParams,
+    paramsSerializer: serializeRepeatedParams,
   });
 
 export type FeedbackGroupBy =
@@ -80,7 +65,7 @@ export interface FeedbackOverview {
 export const getFeedbackOverview = (params?: GetFeedbackOverviewParams) =>
   instance.get<FeedbackOverview>("/feedback/overview", {
     params,
-    paramsSerializer: serializeFeedbackParams,
+    paramsSerializer: serializeRepeatedParams,
   });
 
 export interface GetFeedbackTopColumnsParams extends FeedbackFilterParams {
@@ -101,5 +86,5 @@ export interface FeedbackTopColumns {
 export const getFeedbackTopColumns = (params?: GetFeedbackTopColumnsParams) =>
   instance.get<FeedbackTopColumns>("/feedback/top-columns", {
     params,
-    paramsSerializer: serializeFeedbackParams,
+    paramsSerializer: serializeRepeatedParams,
   });
