@@ -10,6 +10,7 @@ import { ServicesPage } from './pages/ServicesPage'
 import { UsersPage } from './pages/UsersPage'
 import { AgentsPage } from './pages/AgentsPage'
 import { ScoresPage } from './pages/ScoresPage'
+import { AuditLogsPage } from './pages/AuditLogsPage'
 import { ServiceListPage } from './pages/ServiceListPage'
 import { MyOrganizationsPage } from './pages/MyOrganizationsPage'
 import { SecuritySettingsPage } from './pages/SecuritySettingsPage'
@@ -48,6 +49,7 @@ export default function App() {
                 <Route path="/agents" element={<AgentsPage />} />
                 <Route path="/users" element={<UsersPage />} />
                 <Route path="/scores" element={<ScoresPage />} />
+                <Route path="/audit-logs" element={<AuditLogsPage />} />
               </Route>
             </Route>
           </Route>

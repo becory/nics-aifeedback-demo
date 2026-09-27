@@ -10,6 +10,7 @@ import {
   OverviewIcon,
   ScoreIcon,
   ImportIcon,
+  AuditIcon,
 } from "./NavIcons";
 
 const adminNavItems = [
@@ -18,6 +19,7 @@ const adminNavItems = [
   { to: "/services", label: "服務管理", Icon: ServiceIcon },
   { to: "/users", label: "使用者管理", Icon: UserIcon },
   { to: "/scores", label: "分數管理", Icon: ScoreIcon },
+  { to: "/audit-logs", label: "稽核日誌", Icon: AuditIcon },
 ];
 
 const userNavItems = [

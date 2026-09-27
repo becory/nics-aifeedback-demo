@@ -181,6 +181,24 @@ export interface DataResponse<T> {
   data: T
   message?: string
   error?: string
+  /** Cursor-paged lists only (e.g. audit logs): pass back as pageToken; absent on the last page. */
+  nextPageToken?: string
+}
+
+export type AuditSeverity = 'DEFAULT' | 'DEBUG' | 'INFO' | 'NOTICE' | 'WARNING' | 'ERROR' | 'CRITICAL' | 'ALERT' | 'EMERGENCY'
+
+export interface AuditLogEntry {
+  insertId: string
+  timestamp: string
+  severity: AuditSeverity | string
+  eventType?: string | null
+  description?: string | null
+  /** Always the acting user; whoever was acted on is in properties (targetUserId, agentId, ...). */
+  userId?: string | null
+  userEmail?: string | null
+  clientIp?: string | null
+  resource?: string | null
+  properties: Record<string, unknown>
 }
 
 export type ImportLogStatus = 'Succeeded' | 'PartiallySucceeded' | 'Failed'
