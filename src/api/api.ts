@@ -25,6 +25,23 @@ export function setOnUnauthorized(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
+// Repeats a key once per array element (?eventType=a&eventType=b), which is how the backend's
+// multi-value filters bind; axios' default would send eventType[]=a instead.
+export function serializeRepeatedParams(params: Record<string, unknown>): string {
+  const usp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        if (v !== undefined && v !== null) usp.append(key, String(v));
+      }
+    } else {
+      usp.append(key, String(value));
+    }
+  }
+  return usp.toString();
+}
+
 export function getApiErrorMessage(error: unknown): string | undefined {
   if (axios.isAxiosError(error) && typeof error.response?.data === "string") {
     return error.response.data;
