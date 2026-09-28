@@ -85,6 +85,14 @@ export function AgentDetailPanel({
           <span className="text-slate-500">部署類型：</span>
           {isLocal ? "地端（Local）" : "雲端（Cloud）"}
         </p>
+        <p className="break-all">
+          <span className="text-slate-500">API URL：</span>
+          {agent.apiUrl ? (
+            <span className="font-mono">{agent.apiUrl}</span>
+          ) : (
+            <span className="text-amber-600">尚未設定</span>
+          )}
+        </p>
         <p>
           <span className="text-slate-500">狀態：</span>
           {!agent.isActive
