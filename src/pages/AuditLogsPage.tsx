@@ -1,101 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getAgents, getAuditLogs, getOrganizations, getUsers } from "../api";
 import type { GetAuditLogsParams } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import { AuditLogDetailModal } from "../components/AuditLogDetailModal";
-import {
-  Button,
-  CheckboxGroup,
-  EmptyState,
-  Input,
-  LoadingState,
-  PageHeader,
-  Select,
-} from "../components/ui";
+import { FilterBar, type FilterFieldGroup } from "../components/FilterBar";
+import { Button, EmptyState, LoadingState, PageHeader } from "../components/ui";
 import {
   AUDIT_EVENT_CATEGORIES,
-  AUDIT_QUERY_EVENT_TYPE,
   auditEventLabel,
   isWarningOrAbove,
   severityBadgeClass,
 } from "../lib/auditLog";
+import {
+  AUDIT_SEVERITY_OPTIONS,
+  AUDIT_TIME_PRESETS,
+  SINGLE_VALUE_AUDIT_FIELDS,
+  auditFiltersFromSearchParams,
+  auditFiltersToSearchParams,
+  buildAuditLogParams,
+  type AuditFilterField,
+  type AuditLogFilters,
+} from "../lib/auditLogFilters";
 import { formatDisplayTime } from "../lib/datetime";
-import { toDatetimeLocal } from "../lib/feedbackStats";
 import type { Agent, AuditLogEntry, Organization, User } from "../types";
 
 const PAGE_SIZE = 50;
 
-const SEVERITY_OPTIONS = [
-  { value: "", label: "全部" },
-  { value: "WARNING", label: "警告以上" },
-  { value: "ERROR", label: "錯誤以上" },
-];
-
-const QUICK_RANGES = [
-  { label: "最近 24 小時", hours: 24 },
-  { label: "最近 7 天", hours: 24 * 7 },
-  { label: "最近 30 天", hours: 24 * 30 },
-];
-
-interface Filters {
-  from: string;
-  to: string;
-  categories: string[];
-  hideAuditQueries: boolean;
-  minSeverity: string;
-  userId: string;
-  userEmail: string;
-  targetUserId: string;
-  organizationId: string;
-  agentId: string;
-  clientIp: string;
-}
-
-function hoursAgoLocal(hours: number): string {
-  return toDatetimeLocal(new Date(Date.now() - hours * 3600_000).toISOString());
-}
-
-function defaultFilters(): Filters {
-  return {
-    from: hoursAgoLocal(24 * 7),
-    to: "",
-    categories: [],
-    hideAuditQueries: true,
-    minSeverity: "",
-    userId: "",
-    userEmail: "",
-    targetUserId: "",
-    organizationId: "",
-    agentId: "",
-    clientIp: "",
-  };
-}
-
-function one(value: string): string[] | undefined {
-  const trimmed = value.trim();
-  return trimmed ? [trimmed] : undefined;
-}
-
-function toParams(filters: Filters): GetAuditLogsParams {
-  const eventType = AUDIT_EVENT_CATEGORIES.filter((c) =>
-    filters.categories.includes(c.value),
-  ).flatMap((c) => c.prefixes);
-  if (filters.hideAuditQueries) eventType.push(`-${AUDIT_QUERY_EVENT_TYPE}`);
-
-  return {
-    eventType: eventType.length ? eventType : undefined,
-    userId: one(filters.userId),
-    userEmail: one(filters.userEmail),
-    targetUserId: one(filters.targetUserId),
-    organizationId: one(filters.organizationId),
-    agentId: one(filters.agentId),
-    clientIp: one(filters.clientIp),
-    minSeverity: (filters.minSeverity || undefined) as GetAuditLogsParams["minSeverity"],
-    from: filters.from ? new Date(filters.from).toISOString() : undefined,
-    to: filters.to ? new Date(filters.to).toISOString() : undefined,
-    pageSize: PAGE_SIZE,
-  };
-}
 
 function propertyString(entry: AuditLogEntry, key: string): string | undefined {
   const value = entry.properties[key];
@@ -103,8 +34,12 @@ function propertyString(entry: AuditLogEntry, key: string): string | undefined {
 }
 
 export function AuditLogsPage() {
-  const [filters, setFilters] = useState<Filters>(defaultFilters);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  // Filters live in the query string (shareable, same scheme as the feedback overview). Read once
+  // on mount; every change writes it back and queries right away.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filters, setFilters] = useState<AuditLogFilters>(() =>
+    auditFiltersFromSearchParams(searchParams),
+  );
 
   const [users, setUsers] = useState<User[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -114,8 +49,10 @@ export function AuditLogsPage() {
   // The params of the query currently on screen, so "載入更多" keeps paging the same query
   // even if the filter form has been edited since.
   const [appliedParams, setAppliedParams] = useState<GetAuditLogsParams>(() =>
-    toParams(defaultFilters()),
+    buildAuditLogParams(filters, PAGE_SIZE),
   );
+  // Filters apply on every change, so responses can arrive out of order; only the latest counts.
+  const requestSeq = useRef(0);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -157,36 +94,39 @@ export function AuditLogsPage() {
     }
   };
 
-  const fetchPage = (params: GetAuditLogsParams, pageToken?: string) =>
-    getAuditLogs({ ...params, pageToken })
-      .then((response) => applyPage(response, pageToken))
-      .catch((err) => applyError(err, pageToken))
+  const fetchPage = (params: GetAuditLogsParams, pageToken?: string) => {
+    const seq = ++requestSeq.current;
+    return getAuditLogs({ ...params, pageToken })
+      .then((response) => seq === requestSeq.current && applyPage(response, pageToken))
+      .catch((err) => seq === requestSeq.current && applyError(err, pageToken))
       .finally(() => {
+        if (seq !== requestSeq.current) return;
         setLoading(false);
         setLoadingMore(false);
       });
+  };
 
-  // First page with the default filters on open; later queries only run on 「查詢」, since
-  // every query spends Cloud Logging read quota and records an auditLogs.queried event.
+  // First page on open (filters from the URL or the defaults). Note every query spends Cloud
+  // Logging read quota and records an auditLogs.queried event.
   useEffect(() => {
     let cancelled = false;
+    const seq = ++requestSeq.current;
+    const current = () => !cancelled && seq === requestSeq.current;
     getAuditLogs(appliedParams)
-      .then((response) => !cancelled && applyPage(response))
-      .catch((err) => !cancelled && applyError(err))
-      .finally(() => !cancelled && setLoading(false));
+      .then((response) => current() && applyPage(response))
+      .catch((err) => current() && applyError(err))
+      .finally(() => current() && setLoading(false));
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleQuery = () => {
-    if (filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) {
-      setError("開始時間不可晚於結束時間");
-      return;
-    }
-    const params = toParams(filters);
+  const applyFilters = (next: AuditLogFilters) => {
+    const params = buildAuditLogParams(next, PAGE_SIZE);
+    setFilters(next);
     setAppliedParams(params);
+    setSearchParams(auditFiltersToSearchParams(next), { replace: true });
     setLoading(true);
     fetchPage(params);
   };
@@ -196,9 +136,6 @@ export function AuditLogsPage() {
     setLoadingMore(true);
     fetchPage(appliedParams, nextPageToken);
   };
-
-  const update = <K extends keyof Filters>(key: K, value: Filters[K]) =>
-    setFilters((prev) => ({ ...prev, [key]: value }));
 
   const usersById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
   const orgsById = useMemo(
@@ -236,9 +173,44 @@ export function AuditLogsPage() {
     return entry.resource || "—";
   };
 
-  const userOptions = [
-    { value: "", label: "全部" },
-    ...users.map((u) => ({ value: u.id, label: `${u.name} (${u.email})` })),
+  const userOptions = users.map((u) => ({ value: u.id, label: `${u.name} (${u.email})` }));
+  const single = (field: AuditFilterField) => SINGLE_VALUE_AUDIT_FIELDS.includes(field);
+  const fieldGroups: FilterFieldGroup<AuditFilterField>[] = [
+    {
+      label: "事件",
+      fields: [
+        {
+          value: "category",
+          label: "事件類別",
+          options: AUDIT_EVENT_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
+        },
+        { value: "minSeverity", label: "最低等級", options: AUDIT_SEVERITY_OPTIONS, single: single("minSeverity") },
+      ],
+    },
+    {
+      label: "操作者",
+      fields: [
+        { value: "userId", label: "操作者", options: userOptions },
+        { value: "userEmail", label: "操作者 Email", placeholder: "可查已刪除或不存在的帳號" },
+        { value: "clientIp", label: "IP", placeholder: "例如：203.0.113.5" },
+      ],
+    },
+    {
+      label: "對象",
+      fields: [
+        { value: "targetUserId", label: "對象使用者", options: userOptions },
+        {
+          value: "organizationId",
+          label: "組織",
+          options: organizations.map((o) => ({ value: o.id, label: `${o.name} (${o.code})` })),
+        },
+        {
+          value: "agentId",
+          label: "服務代理",
+          options: agents.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })),
+        },
+      ],
+    },
   ];
 
   return (
@@ -248,140 +220,25 @@ export function AuditLogsPage() {
         description="查詢登入、權限與管理操作等稽核事件（保留期限約 30 天）"
       />
 
-      <div className="cf-card mb-4 p-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <Input
-              id="audit-from"
-              label="開始時間"
-              type="datetime-local"
-              value={filters.from}
-              onChange={(e) => update("from", e.target.value)}
-            />
-          </div>
-          <div>
-            <Input
-              id="audit-to"
-              label="結束時間（留空表示至今）"
-              type="datetime-local"
-              value={filters.to}
-              onChange={(e) => update("to", e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-3">
-          {QUICK_RANGES.map((r) => (
-            <button
-              key={r.hours}
-              type="button"
-              onClick={() => setFilters((prev) => ({ ...prev, from: hoursAgoLocal(r.hours), to: "" }))}
-              className="cf-link text-xs"
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div>
-            <CheckboxGroup
-              label="事件類別（未勾選表示全部）"
-              options={AUDIT_EVENT_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
-              values={filters.categories}
-              onChange={(values) => update("categories", values)}
-            />
-          </div>
-          <div>
-            <Select
-              label="最低等級"
-              value={filters.minSeverity}
-              onChange={(e) => update("minSeverity", e.target.value)}
-              options={SEVERITY_OPTIONS}
-            />
-            <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+      <div className="cf-card mb-4">
+        <FilterBar
+          value={filters}
+          onChange={(next) => applyFilters({ ...filters, ...next })}
+          presets={AUDIT_TIME_PRESETS}
+          customKey="custom"
+          fieldGroups={fieldGroups}
+          extra={
+            <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={filters.hideAuditQueries}
-                onChange={(e) => update("hideAuditQueries", e.target.checked)}
+                onChange={(e) => applyFilters({ ...filters, hideAuditQueries: e.target.checked })}
                 className="h-4 w-4 rounded border-[#d9d9d9]"
               />
               隱藏「查詢稽核日誌」事件
             </label>
-          </div>
-          <div>
-            <Select
-              label="操作者"
-              value={filters.userId}
-              onChange={(e) => update("userId", e.target.value)}
-              options={userOptions}
-            />
-            <Input
-              label="操作者 Email"
-              value={filters.userEmail}
-              onChange={(e) => update("userEmail", e.target.value)}
-              placeholder="可查已刪除或不存在的帳號"
-            />
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowAdvanced((v) => !v)}
-          className="cf-link mt-4 text-sm"
-        >
-          {showAdvanced ? "收合進階篩選" : "進階篩選"}
-        </button>
-        {showAdvanced && (
-          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <Select
-                label="對象使用者"
-                value={filters.targetUserId}
-                onChange={(e) => update("targetUserId", e.target.value)}
-                options={userOptions}
-              />
-            </div>
-            <div>
-              <Select
-                label="組織"
-                value={filters.organizationId}
-                onChange={(e) => update("organizationId", e.target.value)}
-                options={[
-                  { value: "", label: "全部" },
-                  ...organizations.map((o) => ({ value: o.id, label: `${o.name} (${o.code})` })),
-                ]}
-              />
-            </div>
-            <div>
-              <Select
-                label="服務代理"
-                value={filters.agentId}
-                onChange={(e) => update("agentId", e.target.value)}
-                options={[
-                  { value: "", label: "全部" },
-                  ...agents.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })),
-                ]}
-              />
-            </div>
-            <div>
-              <Input
-                label="IP"
-                value={filters.clientIp}
-                onChange={(e) => update("clientIp", e.target.value)}
-                placeholder="例如：203.0.113.5"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setFilters(defaultFilters())}>
-            清除
-          </Button>
-          <Button onClick={handleQuery} disabled={loading}>
-            {loading ? "查詢中…" : "查詢"}
-          </Button>
-        </div>
+          }
+        />
       </div>
 
       {error && <div className="cf-alert cf-alert--error mb-4">{error}</div>}
