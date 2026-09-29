@@ -15,7 +15,7 @@ export interface FeedbackFilterParams {
   ipAddress?: string | string[];
   originHost?: string | string[];
   userAgent?: string | string[];
-  sessionId?: string;
+  sessionId?: string | string[];
   from?: string;
   to?: string;
 }
@@ -81,10 +81,33 @@ export interface FeedbackTopColumnItem {
 export interface FeedbackTopColumns {
   column: string;
   items: FeedbackTopColumnItem[];
+  /** How many distinct values the column has in range (items is only the top 5); null/empty
+   *  values are not counted. */
+  distinctCount: number;
 }
 
 export const getFeedbackTopColumns = (params?: GetFeedbackTopColumnsParams) =>
   instance.get<FeedbackTopColumns>("/feedback/top-columns", {
+    params,
+    paramsSerializer: serializeRepeatedParams,
+  });
+
+
+// GET /api/feedback/service-ratings — per-service rating counts and weighted average score
+// (backend spec: aifeedback-portal docs/superpowers/specs/2026-09-29-feedback-service-ratings-design.md).
+export interface FeedbackServiceRating {
+  /** Service.Code */
+  serviceId: string;
+  /** Service.Name */
+  label: string;
+  totalCount: number;
+  /** Raw feedback_rating value -> count; only ratings with count > 0 are present. */
+  ratingCounts: Record<string, number>;
+  averageScore: number | null;
+}
+
+export const getFeedbackServiceRatings = (params?: FeedbackFilterParams) =>
+  instance.get<DataResponse<FeedbackServiceRating[]>>("/feedback/service-ratings", {
     params,
     paramsSerializer: serializeRepeatedParams,
   });
