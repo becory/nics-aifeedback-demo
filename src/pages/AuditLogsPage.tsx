@@ -393,53 +393,55 @@ export function AuditLogsPage() {
       ) : (
         <div className="cf-card">
           <p className="px-4 pt-3 text-xs text-slate-500">已載入 {entries.length} 筆（最新在前）</p>
-          <table className="cf-table">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 font-medium text-slate-600">時間</th>
-                <th className="px-4 py-3 font-medium text-slate-600">等級</th>
-                <th className="px-4 py-3 font-medium text-slate-600">事件</th>
-                <th className="px-4 py-3 font-medium text-slate-600">操作者</th>
-                <th className="px-4 py-3 font-medium text-slate-600">對象</th>
-                <th className="px-4 py-3 font-medium text-slate-600">IP</th>
-                <th className="px-4 py-3 font-medium text-slate-600">說明</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry) => (
-                <tr
-                  key={entry.insertId}
-                  onClick={() => setSelected(entry)}
-                  className={`cursor-pointer hover:bg-slate-50 ${
-                    isWarningOrAbove(entry.severity) ? "bg-amber-50/60" : ""
-                  }`}
-                >
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                    {formatDisplayTime(entry.timestamp)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${severityBadgeClass(entry.severity)}`}
-                    >
-                      {entry.severity}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-slate-900">{auditEventLabel(entry.eventType)}</div>
-                    {entry.eventType && (
-                      <div className="font-mono text-xs text-slate-400">{entry.eventType}</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{actorLabel(entry)}</td>
-                  <td className="px-4 py-3 text-slate-600">{targetLabel(entry)}</td>
-                  <td className="px-4 py-3 font-mono text-slate-600">{entry.clientIp || "—"}</td>
-                  <td className="max-w-xs truncate px-4 py-3 text-slate-600" title={entry.description ?? ""}>
-                    {entry.description || "—"}
-                  </td>
+          <div className="cf-table-scroll">
+            <table className="cf-table">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 font-medium text-slate-600">時間</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">等級</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">事件</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">操作者</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">對象</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">IP</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">說明</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {entries.map((entry) => (
+                  <tr
+                    key={entry.insertId}
+                    onClick={() => setSelected(entry)}
+                    className={`cursor-pointer hover:bg-slate-50 ${
+                      isWarningOrAbove(entry.severity) ? "bg-amber-50/60" : ""
+                    }`}
+                  >
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                      {formatDisplayTime(entry.timestamp)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${severityBadgeClass(entry.severity)}`}
+                      >
+                        {entry.severity}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-slate-900">{auditEventLabel(entry.eventType)}</div>
+                      {entry.eventType && (
+                        <div className="font-mono text-xs text-slate-400">{entry.eventType}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{actorLabel(entry)}</td>
+                    <td className="px-4 py-3 text-slate-600">{targetLabel(entry)}</td>
+                    <td className="px-4 py-3 font-mono text-slate-600">{entry.clientIp || "—"}</td>
+                    <td className="max-w-xs truncate px-4 py-3 text-slate-600" title={entry.description ?? ""}>
+                      {entry.description || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="border-t border-slate-100 px-4 py-3 text-center">
             {nextPageToken ? (
               <Button variant="secondary" onClick={handleLoadMore} disabled={loadingMore}>

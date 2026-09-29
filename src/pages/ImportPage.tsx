@@ -253,164 +253,170 @@ export function ImportPage() {
         <EmptyState message="尚無匯入紀錄" />
       ) : (
         <div className="cf-card">
-          <table className="cf-table">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 font-medium text-slate-600">時間</th>
-                <th className="px-4 py-3 font-medium text-slate-600">匯入者</th>
-                <th className="px-4 py-3 font-medium text-slate-600">代理</th>
-                <th className="px-4 py-3 font-medium text-slate-600">金鑰</th>
-                <th className="px-4 py-3 font-medium text-slate-600">資料範圍</th>
-                <th className="px-4 py-3 font-medium text-slate-600">狀態</th>
-                <th className="px-4 py-3 font-medium text-slate-600">總筆數</th>
-                <th className="px-4 py-3 font-medium text-slate-600">成功</th>
-                <th className="px-4 py-3 font-medium text-slate-600">失敗</th>
-                <th className="px-4 py-3 font-medium text-slate-600">重複</th>
-                <th className="px-4 py-3 font-medium text-slate-600 text-right">
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <Fragment key={log.id}>
-                  <tr>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatDisplayTime(log.requestedAt)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {log.requestedByName ? (
-                        <>
-                          <div>{log.requestedByName}</div>
-                          {log.requestedByEmail && (
-                            <div className="text-xs text-slate-400">{log.requestedByEmail}</div>
-                          )}
-                        </>
-                      ) : (
-                        log.requestedByEmail ?? "—"
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {log.agentName ? `${log.agentName} (${log.agentCode})` : "—"}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-600">
-                      {log.keyPreview ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatDataRange(log)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(log.status)}`}
-                      >
-                        {STATUS_LABELS[log.status] ?? log.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{log.totalRecordCount}</td>
-                    <td className="px-4 py-3 text-slate-600">{log.succeededRecordCount}</td>
-                    <td className="px-4 py-3 text-slate-600">{log.failedRecordCount}</td>
-                    <td className="px-4 py-3 text-slate-600">{log.duplicateRecordCount}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleDetail(log)}
-                        className="cf-link"
-                      >
-                        {expandedId === log.id ? "收合" : "詳情"}
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedId === log.id && (
+          <div className="cf-table-scroll">
+            <table className="cf-table">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 font-medium text-slate-600">時間</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">匯入者</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">代理</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">金鑰</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">資料範圍</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">狀態</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">總筆數</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">成功</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">失敗</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">重複</th>
+                  <th className="px-4 py-3 font-medium text-slate-600 text-right">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <Fragment key={log.id}>
                     <tr>
-                      <td colSpan={11} className="bg-slate-50 px-4 py-4">
-                        {expandedLoading ? (
-                          <LoadingState />
-                        ) : expandedError ? (
-                          <p className="text-sm text-red-600">{expandedError}</p>
-                        ) : expandedDetail ? (
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDisplayTime(log.requestedAt)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {log.requestedByName ? (
                           <>
-                            {expandedDetail.errorMessage && (
-                              <p className="mb-2 text-sm text-red-600">
-                                {expandedDetail.errorMessage}
-                              </p>
+                            <div>{log.requestedByName}</div>
+                            {log.requestedByEmail && (
+                              <div className="text-xs text-slate-400">{log.requestedByEmail}</div>
                             )}
-                            {expandedDetail.serviceSummaries.length > 0 && (
-                              <div className="mb-4">
-                                <p className="mb-1 text-xs font-medium text-slate-500">
-                                  各服務匯入筆數
-                                </p>
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="text-left text-xs text-slate-500">
-                                      <th className="py-1 pr-4 font-medium">服務</th>
-                                      <th className="py-1 pr-4 font-medium">總筆數</th>
-                                      <th className="py-1 pr-4 font-medium">成功</th>
-                                      <th className="py-1 pr-4 font-medium">失敗</th>
-                                      <th className="py-1 pr-4 font-medium">重複</th>
-                                      <th className="py-1 font-medium">失敗原因</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {expandedDetail.serviceSummaries.map((s) => (
-                                      <tr key={s.serviceId}>
-                                        <td className="py-1 pr-4 font-mono text-slate-600">
-                                          {s.serviceId}
-                                        </td>
-                                        <td className="py-1 pr-4 text-slate-600">
-                                          {s.totalCount}
-                                        </td>
-                                        <td className="py-1 pr-4 text-slate-600">
-                                          {s.succeededCount}
-                                        </td>
-                                        <td className="py-1 pr-4 text-slate-600">
-                                          {s.failedCount}
-                                        </td>
-                                        <td className="py-1 pr-4 text-slate-600">
-                                          {s.duplicateCount}
-                                        </td>
-                                        <td className="py-1 text-slate-600">
-                                          {s.failedReason ?? "—"}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                            {expandedDetail.failedLineSamples.length === 0 ? (
-                              <p className="text-sm text-slate-500">無失敗列細節</p>
-                            ) : (
-                              <table className="w-full text-sm">
-                                <thead>
-                                  <tr className="text-left text-xs text-slate-500">
-                                    <th className="py-1 pr-4 font-medium">行號</th>
-                                    <th className="py-1 font-medium">原因</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {expandedDetail.failedLineSamples.map((e, idx) => (
-                                    <tr key={idx}>
-                                      <td className="py-1 pr-4 text-slate-600">
-                                        {e.lineNumber}
-                                      </td>
-                                      <td className="py-1 text-slate-600">{e.reason}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                            <p className="mt-3 text-xs text-slate-400">
-                              檔案 MD5：<span className="font-mono">{expandedDetail.fileMd5}</span>
-                            </p>
                           </>
-                        ) : null}
+                        ) : (
+                          log.requestedByEmail ?? "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {log.agentName ? `${log.agentName} (${log.agentCode})` : "—"}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-600">
+                        {log.keyPreview ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDataRange(log)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(log.status)}`}
+                        >
+                          {STATUS_LABELS[log.status] ?? log.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{log.totalRecordCount}</td>
+                      <td className="px-4 py-3 text-slate-600">{log.succeededRecordCount}</td>
+                      <td className="px-4 py-3 text-slate-600">{log.failedRecordCount}</td>
+                      <td className="px-4 py-3 text-slate-600">{log.duplicateRecordCount}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleDetail(log)}
+                          className="cf-link"
+                        >
+                          {expandedId === log.id ? "收合" : "詳情"}
+                        </button>
                       </td>
                     </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
+                    {expandedId === log.id && (
+                      <tr>
+                        <td colSpan={11} className="bg-slate-50 px-4 py-4">
+                          {expandedLoading ? (
+                            <LoadingState />
+                          ) : expandedError ? (
+                            <p className="text-sm text-red-600">{expandedError}</p>
+                          ) : expandedDetail ? (
+                            <>
+                              {expandedDetail.errorMessage && (
+                                <p className="mb-2 text-sm text-red-600">
+                                  {expandedDetail.errorMessage}
+                                </p>
+                              )}
+                              {expandedDetail.serviceSummaries.length > 0 && (
+                                <div className="mb-4">
+                                  <p className="mb-1 text-xs font-medium text-slate-500">
+                                    各服務匯入筆數
+                                  </p>
+                                  <div className="cf-table-scroll">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="text-left text-xs text-slate-500">
+                                          <th className="py-1 pr-4 font-medium">服務</th>
+                                          <th className="py-1 pr-4 font-medium">總筆數</th>
+                                          <th className="py-1 pr-4 font-medium">成功</th>
+                                          <th className="py-1 pr-4 font-medium">失敗</th>
+                                          <th className="py-1 pr-4 font-medium">重複</th>
+                                          <th className="py-1 font-medium">失敗原因</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {expandedDetail.serviceSummaries.map((s) => (
+                                          <tr key={s.serviceId}>
+                                            <td className="py-1 pr-4 font-mono text-slate-600">
+                                              {s.serviceId}
+                                            </td>
+                                            <td className="py-1 pr-4 text-slate-600">
+                                              {s.totalCount}
+                                            </td>
+                                            <td className="py-1 pr-4 text-slate-600">
+                                              {s.succeededCount}
+                                            </td>
+                                            <td className="py-1 pr-4 text-slate-600">
+                                              {s.failedCount}
+                                            </td>
+                                            <td className="py-1 pr-4 text-slate-600">
+                                              {s.duplicateCount}
+                                            </td>
+                                            <td className="py-1 text-slate-600">
+                                              {s.failedReason ?? "—"}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              )}
+                              {expandedDetail.failedLineSamples.length === 0 ? (
+                                <p className="text-sm text-slate-500">無失敗列細節</p>
+                              ) : (
+                                <div className="cf-table-scroll">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="text-left text-xs text-slate-500">
+                                        <th className="py-1 pr-4 font-medium">行號</th>
+                                        <th className="py-1 font-medium">原因</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {expandedDetail.failedLineSamples.map((e, idx) => (
+                                        <tr key={idx}>
+                                          <td className="py-1 pr-4 text-slate-600">
+                                            {e.lineNumber}
+                                          </td>
+                                          <td className="py-1 text-slate-600">{e.reason}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                              <p className="mt-3 text-xs text-slate-400">
+                                檔案 MD5：<span className="font-mono">{expandedDetail.fileMd5}</span>
+                              </p>
+                            </>
+                          ) : null}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </>

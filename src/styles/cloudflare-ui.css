@@ -209,6 +209,20 @@ textarea.cf-input {
   }
 }
 
+/* Every table sits in one of these so it scrolls sideways on narrow screens instead of being
+   clipped by .cf-card's overflow: hidden. */
+.cf-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Headers never wrap, so on a phone the columns keep a readable width and the wrapper scrolls
+   (otherwise CJK headers break into one character per line). */
+.cf-table-scroll th {
+  white-space: nowrap;
+}
+
 .cf-table {
   width: 100%;
   border-collapse: collapse;

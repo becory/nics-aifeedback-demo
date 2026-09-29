@@ -377,220 +377,224 @@ export function AgentsPage() {
         <EmptyState message="尚無服務代理，點擊「新增服務代理」開始建立" />
       ) : (
         <div className="cf-card">
-          <table className="cf-table">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 font-medium text-slate-600">名稱</th>
-                <th className="px-4 py-3 font-medium text-slate-600">代碼</th>
-                <th className="px-4 py-3 font-medium text-slate-600">
-                  所屬組織
-                </th>
-                <th className="px-4 py-3 font-medium text-slate-600">
-                  部署類型
-                </th>
-                <th className="px-4 py-3 font-medium text-slate-600">
-                  使用中金鑰數
-                </th>
-                <th className="px-4 py-3 font-medium text-slate-600">
-                  金鑰到期時間
-                </th>
-                <th className="px-4 py-3 font-medium text-slate-600">狀態</th>
-                <th className="px-4 py-3 font-medium text-slate-600 text-right">
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((agent) => {
-                const isLocal = agent.deploymentType === "Local";
-                // Cloud Agents have no key generations, so there is no current key.
-                const currentKey = agent.keys[0] as (typeof agent.keys)[number] | undefined;
-                const expired = currentKey ? isExpired(currentKey.expiresAt) : false;
-                return (
-                <Fragment key={agent.id}>
-                  <tr>
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      {agent.name}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-600">
-                      {agent.code}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {getOrgName(agent.organizationId)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {DEPLOYMENT_TYPE_LABELS[agent.deploymentType] ?? agent.deploymentType}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {isLocal ? agent.activeKeysCount : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {currentKey ? formatDateTime(currentKey.expiresAt) : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                          !agent.isActive
-                            ? "bg-slate-100 text-slate-600"
-                            : expired
-                              ? "bg-red-100 text-red-700"
-                              : "bg-green-100 text-green-700"
-                        }`}
-                      >
-                        {!agent.isActive ? "已停用" : expired ? "已過期" : "有效"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedId(expandedId === agent.id ? null : agent.id)
-                        }
-                        className="cf-link mr-3"
-                      >
-                        {expandedId === agent.id
-                          ? "收合"
-                          : isLocal
-                            ? "顯示所有key"
-                            : "顯示詳情"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadEnv(agent)}
-                        disabled={!agent.isActive}
-                        className="cf-link mr-3 disabled:opacity-40"
-                      >
-                        下載 .env
-                      </button>
-                      {isLocal && (
+          <div className="cf-table-scroll">
+            <table className="cf-table">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 font-medium text-slate-600">名稱</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">代碼</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">
+                    所屬組織
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-600">
+                    部署類型
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-600">
+                    使用中金鑰數
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-600">
+                    金鑰到期時間
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-600">狀態</th>
+                  <th className="px-4 py-3 font-medium text-slate-600 text-right">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((agent) => {
+                  const isLocal = agent.deploymentType === "Local";
+                  // Cloud Agents have no key generations, so there is no current key.
+                  const currentKey = agent.keys[0] as (typeof agent.keys)[number] | undefined;
+                  const expired = currentKey ? isExpired(currentKey.expiresAt) : false;
+                  return (
+                  <Fragment key={agent.id}>
+                    <tr>
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {agent.name}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-600">
+                        {agent.code}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {getOrgName(agent.organizationId)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {DEPLOYMENT_TYPE_LABELS[agent.deploymentType] ?? agent.deploymentType}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {isLocal ? agent.activeKeysCount : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {currentKey ? formatDateTime(currentKey.expiresAt) : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                            !agent.isActive
+                              ? "bg-slate-100 text-slate-600"
+                              : expired
+                                ? "bg-red-100 text-red-700"
+                                : "bg-green-100 text-green-700"
+                          }`}
+                        >
+                          {!agent.isActive ? "已停用" : expired ? "已過期" : "有效"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
                         <button
                           type="button"
-                          onClick={() => openRotateKey(agent)}
+                          onClick={() =>
+                            setExpandedId(expandedId === agent.id ? null : agent.id)
+                          }
+                          className="cf-link mr-3"
+                        >
+                          {expandedId === agent.id
+                            ? "收合"
+                            : isLocal
+                              ? "顯示所有key"
+                              : "顯示詳情"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadEnv(agent)}
                           disabled={!agent.isActive}
                           className="cf-link mr-3 disabled:opacity-40"
                         >
-                          輪替金鑰
+                          下載 .env
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => openEdit(agent)}
-                        className="cf-link mr-3"
-                      >
-                        編輯
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeactivate(agent)}
-                        disabled={!agent.isActive}
-                        className="text-red-600 hover:text-red-800 disabled:opacity-40"
-                      >
-                        停用
-                      </button>
-                    </td>
-                  </tr>
-                  {expandedId === agent.id && (
-                    <tr>
-                      <td colSpan={8} className="bg-slate-50 px-4 py-4">
-                        <p className="mb-3 text-xs text-slate-500">
-                          API URL：
-                          {agent.apiUrl ? (
-                            <span className="font-mono text-slate-700">{agent.apiUrl}</span>
-                          ) : (
-                            <span className="text-amber-600">尚未設定，請編輯補上</span>
-                          )}
-                        </p>
-                        {isLocal ? (
-                        <>
-                        <p className="mb-2 text-xs font-medium text-slate-500">
-                          所有金鑰世代（僅新建立或剛輪替的金鑰會顯示完整明文，其餘僅顯示遮罩預覽）
-                        </p>
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-left text-xs text-slate-500">
-                              <th className="py-1 pr-4 font-medium">建立時間</th>
-                              <th className="py-1 pr-4 font-medium">到期時間</th>
-                              <th className="py-1 pr-4 font-medium">金鑰預覽</th>
-                              <th className="py-1 pr-4 font-medium">狀態</th>
-                              <th className="py-1 font-medium text-right">操作</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {agent.keys.map((key, idx) => {
-                              const isCurrent = idx === 0;
-                              return (
-                                <tr key={key.id}>
-                                  <td className="py-1 pr-4 text-slate-600">
-                                    {formatDateTime(key.createdAt)}
-                                  </td>
-                                  <td className="py-1 pr-4 text-slate-600">
-                                    {formatDateTime(key.expiresAt)}
-                                  </td>
-                                  <td className="py-1 pr-4 font-mono text-slate-600">
-                                    {key.aesKeyPreview}
-                                  </td>
-                                  <td className="py-1 pr-4">
-                                    {key.isRevoked ? (
-                                      <span className="text-slate-400">
-                                        已撤銷
-                                        {key.revokedAt
-                                          ? `（${formatDateTime(key.revokedAt)}）`
-                                          : ""}
-                                      </span>
-                                    ) : isCurrent ? (
-                                      <span className="text-green-700">使用中</span>
-                                    ) : (
-                                      <span className="text-amber-600">
-                                        保留中（可解密舊資料）
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="py-1 text-right">
-                                    {!isCurrent && !key.isRevoked && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRevokeKey(agent, key.id)}
-                                        className="text-red-600 hover:text-red-800"
-                                      >
-                                        撤銷
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                        </>
-                        ) : (
-                          <p className="text-xs text-slate-500">
-                            雲端代理不持有 AES 金鑰，.env 僅包含 DEPLOYMENT_MODE、AGENT_ID 與 AGENT_UUID。
-                          </p>
+                        {isLocal && (
+                          <button
+                            type="button"
+                            onClick={() => openRotateKey(agent)}
+                            disabled={!agent.isActive}
+                            className="cf-link mr-3 disabled:opacity-40"
+                          >
+                            輪替金鑰
+                          </button>
                         )}
-                        {getServicesForAgent(agent.id).length > 0 && (
-                          <p className="mt-3 text-xs text-slate-500">
-                            相關服務：
-                            {getServicesForAgent(agent.id).map((s, idx) => (
-                              <span key={s.id}>
-                                {idx > 0 && "、"}
-                                <Link
-                                  to={`/services?code=${encodeURIComponent(s.code)}`}
-                                  className="cf-link"
-                                >
-                                  {s.code} ({s.host})
-                                </Link>
-                              </span>
-                            ))}
-                          </p>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => openEdit(agent)}
+                          className="cf-link mr-3"
+                        >
+                          編輯
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeactivate(agent)}
+                          disabled={!agent.isActive}
+                          className="text-red-600 hover:text-red-800 disabled:opacity-40"
+                        >
+                          停用
+                        </button>
                       </td>
                     </tr>
-                  )}
-                </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                    {expandedId === agent.id && (
+                      <tr>
+                        <td colSpan={8} className="bg-slate-50 px-4 py-4">
+                          <p className="mb-3 text-xs text-slate-500">
+                            API URL：
+                            {agent.apiUrl ? (
+                              <span className="font-mono text-slate-700">{agent.apiUrl}</span>
+                            ) : (
+                              <span className="text-amber-600">尚未設定，請編輯補上</span>
+                            )}
+                          </p>
+                          {isLocal ? (
+                          <>
+                          <p className="mb-2 text-xs font-medium text-slate-500">
+                            所有金鑰世代（僅新建立或剛輪替的金鑰會顯示完整明文，其餘僅顯示遮罩預覽）
+                          </p>
+                          <div className="cf-table-scroll">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="text-left text-xs text-slate-500">
+                                  <th className="py-1 pr-4 font-medium">建立時間</th>
+                                  <th className="py-1 pr-4 font-medium">到期時間</th>
+                                  <th className="py-1 pr-4 font-medium">金鑰預覽</th>
+                                  <th className="py-1 pr-4 font-medium">狀態</th>
+                                  <th className="py-1 font-medium text-right">操作</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {agent.keys.map((key, idx) => {
+                                  const isCurrent = idx === 0;
+                                  return (
+                                    <tr key={key.id}>
+                                      <td className="py-1 pr-4 text-slate-600">
+                                        {formatDateTime(key.createdAt)}
+                                      </td>
+                                      <td className="py-1 pr-4 text-slate-600">
+                                        {formatDateTime(key.expiresAt)}
+                                      </td>
+                                      <td className="py-1 pr-4 font-mono text-slate-600">
+                                        {key.aesKeyPreview}
+                                      </td>
+                                      <td className="py-1 pr-4">
+                                        {key.isRevoked ? (
+                                          <span className="text-slate-400">
+                                            已撤銷
+                                            {key.revokedAt
+                                              ? `（${formatDateTime(key.revokedAt)}）`
+                                              : ""}
+                                          </span>
+                                        ) : isCurrent ? (
+                                          <span className="text-green-700">使用中</span>
+                                        ) : (
+                                          <span className="text-amber-600">
+                                            保留中（可解密舊資料）
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="py-1 text-right">
+                                        {!isCurrent && !key.isRevoked && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRevokeKey(agent, key.id)}
+                                            className="text-red-600 hover:text-red-800"
+                                          >
+                                            撤銷
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                          </>
+                          ) : (
+                            <p className="text-xs text-slate-500">
+                              雲端代理不持有 AES 金鑰，.env 僅包含 DEPLOYMENT_MODE、AGENT_ID 與 AGENT_UUID。
+                            </p>
+                          )}
+                          {getServicesForAgent(agent.id).length > 0 && (
+                            <p className="mt-3 text-xs text-slate-500">
+                              相關服務：
+                              {getServicesForAgent(agent.id).map((s, idx) => (
+                                <span key={s.id}>
+                                  {idx > 0 && "、"}
+                                  <Link
+                                    to={`/services?code=${encodeURIComponent(s.code)}`}
+                                    className="cf-link"
+                                  >
+                                    {s.code} ({s.host})
+                                  </Link>
+                                </span>
+                              ))}
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
