@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import {
-  OrgIcon,
   ServiceIcon,
   UserIcon,
   AgentIcon,
@@ -14,7 +13,6 @@ import {
 } from "./NavIcons";
 
 const adminNavItems = [
-  { to: "/organizations", label: "組織管理", Icon: OrgIcon },
   { to: "/agents", label: "服務代理", Icon: AgentIcon },
   { to: "/services", label: "服務管理", Icon: ServiceIcon },
   { to: "/users", label: "使用者管理", Icon: UserIcon },
@@ -25,7 +23,6 @@ const adminNavItems = [
 const userNavItems = [
   { to: "/feedback-overview", label: "回饋資料總覽", Icon: OverviewIcon },
   { to: "/import", label: "資料匯入", Icon: ImportIcon },
-  { to: "/my-organizations", label: "組織清單", Icon: OrgIcon },
   { to: "/my-services", label: "服務清單", Icon: ListIcon },
 ];
 
