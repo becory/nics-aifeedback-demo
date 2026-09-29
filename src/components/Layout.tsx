@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import {
   ServiceIcon,
@@ -29,9 +29,11 @@ const userNavItems = [
 function NavSection({
   title,
   items,
+  onNavigate,
 }: {
   title: string;
   items: typeof adminNavItems;
+  onNavigate?: () => void;
 }) {
   return (
     <div className="cf-nav-section">
@@ -41,6 +43,7 @@ function NavSection({
           <NavLink
             key={item.to}
             to={item.to}
+            onClick={onNavigate}
             className={({ isActive }) =>
               `cf-nav-link${isActive ? " cf-nav-link--active" : ""}`
             }
@@ -135,26 +138,71 @@ function AccountMenu() {
   );
 }
 
+function MenuIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+    </svg>
+  );
+}
+
 export function Layout() {
   const { user } = useAuth();
+  const location = useLocation();
+  // Mobile only (< md): the sidebar is an off-canvas drawer. On desktop it is always shown and
+  // this flag has no visual effect.
+  const [navOpen, setNavOpen] = useState(false);
+  const [lastPath, setLastPath] = useState(location.pathname);
+
+  // Close the drawer whenever the route changes (e.g. browser back), adjusting state during
+  // render rather than in an effect.
+  if (location.pathname !== lastPath) {
+    setLastPath(location.pathname);
+    setNavOpen(false);
+  }
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setNavOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [navOpen]);
+
+  const closeNav = () => setNavOpen(false);
 
   return (
     <div className="cf-shell">
-      <aside className="cf-sidebar">
+      {navOpen && <div className="cf-sidebar-backdrop" onClick={closeNav} aria-hidden />}
+      <aside id="cf-sidebar" className={`cf-sidebar${navOpen ? " cf-sidebar--open" : ""}`}>
         <div className="cf-sidebar__brand">
           <h1 className="cf-sidebar__brand-title">AI 回饋系統</h1>
         </div>
 
         <nav className="cf-sidebar__nav">
-          <NavSection title="使用者功能" items={userNavItems} />
+          <NavSection title="使用者功能" items={userNavItems} onNavigate={closeNav} />
           {user?.isSystemAdmin && (
-            <NavSection title="管理員功能" items={adminNavItems} />
+            <NavSection title="管理員功能" items={adminNavItems} onNavigate={closeNav} />
           )}
         </nav>
       </aside>
 
       <div className="cf-main">
         <header className="cf-topbar">
+          <div className="cf-topbar__start">
+            <button
+              type="button"
+              className="cf-topbar__menu-btn"
+              aria-label={navOpen ? "關閉選單" : "開啟選單"}
+              aria-expanded={navOpen}
+              aria-controls="cf-sidebar"
+              onClick={() => setNavOpen((v) => !v)}
+            >
+              <MenuIcon />
+            </button>
+            <span className="cf-topbar__brand">AI 回饋系統</span>
+          </div>
           <AccountMenu />
         </header>
 
