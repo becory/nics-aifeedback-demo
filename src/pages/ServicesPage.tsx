@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSubmitGuard } from "../lib/useSubmitGuard";
 import { useSearchParams } from "react-router-dom";
 import type { Agent, Organization, Service } from "../types";
 import {
@@ -115,6 +116,7 @@ export function ServicesPage() {
     setOrgModalOpen(true);
   };
 
+  const [savingOrg, guardSaveOrg] = useSubmitGuard();
   const handleSaveOrg = async () => {
     if (!orgName.trim()) {
       setOrgError("請輸入組織名稱");
@@ -175,6 +177,7 @@ export function ServicesPage() {
     setSvcModalOpen(true);
   };
 
+  const [savingService, guardSaveService] = useSubmitGuard();
   const handleSaveService = async () => {
     if (!svcName.trim()) {
       setSvcError("請輸入服務名稱");
@@ -372,7 +375,9 @@ export function ServicesPage() {
             <Button variant="secondary" onClick={() => setOrgModalOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleSaveOrg}>儲存</Button>
+            <Button onClick={() => guardSaveOrg(handleSaveOrg)} disabled={savingOrg}>
+              {savingOrg ? "儲存中…" : "儲存"}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -413,7 +418,9 @@ export function ServicesPage() {
             <Button variant="secondary" onClick={() => setSvcModalOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleSaveService}>儲存</Button>
+            <Button onClick={() => guardSaveService(handleSaveService)} disabled={savingService}>
+              {savingService ? "儲存中…" : "儲存"}
+            </Button>
           </div>
         </div>
       </Modal>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSubmitGuard } from "../lib/useSubmitGuard";
 import type { CreateUser, Organization, User } from "../types";
 import { Modal } from "../components/Modal";
 import {
@@ -112,6 +113,7 @@ export function UsersPage() {
     setPasswordModalOpen(true);
   };
 
+  const [saving, guardSave] = useSubmitGuard();
   const handleSave = async () => {
     if (!name.trim()) {
       setError("請輸入中文名稱");
@@ -425,7 +427,9 @@ export function UsersPage() {
             <Button variant="secondary" onClick={() => setModalOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleSave}>儲存</Button>
+            <Button onClick={() => guardSave(handleSave)} disabled={saving}>
+              {saving ? "儲存中…" : "儲存"}
+            </Button>
           </div>
         </div>
       </Modal>

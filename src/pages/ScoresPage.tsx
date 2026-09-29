@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSubmitGuard } from "../lib/useSubmitGuard";
 import type { FeedbackRating, ScoreConfig } from "../types";
 import { getScoreConfigs, updateScoreConfig } from "../api";
 import { getApiErrorMessage } from "../api/api";
@@ -65,6 +66,7 @@ export function ScoresPage() {
     setModalOpen(true);
   };
 
+  const [saving, guardSave] = useSubmitGuard();
   const handleSave = async () => {
     if (!editingKey) return;
     const current = configs[editingKey];
@@ -220,7 +222,9 @@ export function ScoresPage() {
             <Button variant="secondary" onClick={() => setModalOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleSave}>儲存</Button>
+            <Button onClick={() => guardSave(handleSave)} disabled={saving}>
+              {saving ? "儲存中…" : "儲存"}
+            </Button>
           </div>
         </div>
       </Modal>

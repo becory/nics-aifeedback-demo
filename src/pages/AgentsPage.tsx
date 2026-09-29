@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { useSubmitGuard } from "../lib/useSubmitGuard";
 import { Link, useSearchParams } from "react-router-dom";
 import type { Agent, AgentDeploymentType, Organization, Service } from "../types";
 import {
@@ -158,6 +159,7 @@ export function AgentsPage() {
     setModalOpen(true);
   };
 
+  const [saving, guardSave] = useSubmitGuard();
   const handleSave = async () => {
     if (!organizationId) {
       setError("請選擇所屬組織");
@@ -679,7 +681,9 @@ export function AgentsPage() {
             <Button variant="secondary" onClick={() => setModalOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleSave}>儲存</Button>
+            <Button onClick={() => guardSave(handleSave)} disabled={saving}>
+              {saving ? "儲存中…" : "儲存"}
+            </Button>
           </div>
         </div>
       </Modal>
