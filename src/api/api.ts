@@ -49,16 +49,38 @@ export function getApiErrorMessage(error: unknown): string | undefined {
   return undefined;
 }
 
-const NO_REFRESH_RETRY_PATHS = ["/auth/login", "/auth/2fa", "/auth/refresh"];
+// Auth calls never trigger a refresh. /auth/me is only called right after a token was issued
+// (including inside the refresh itself, where waiting on the refresh would deadlock).
+const NO_REFRESH_RETRY_PATHS = ["/auth/login", "/auth/2fa", "/auth/refresh", "/auth/me"];
 
-instance.interceptors.request.use((config) => {
+const isAuthPath = (url?: string) => !!url?.startsWith("/auth/");
+
+// Refresh tokens rotate (each one is single-use), so concurrent 401s must share one refresh.
+let refreshPromise: Promise<void> | null = null;
+
+function sharedRefresh(handler: RefreshHandler): Promise<void> {
+  refreshPromise ??= handler().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
+instance.interceptors.request.use(async (config) => {
+  // A request sent while a refresh is in flight would carry the expiring token and come back
+  // 401 after the refresh finished, starting another one. Wait and send the new token instead.
+  // (Auth calls skip this: the refresh itself calls /auth/me, which would wait on its own refresh.)
+  if (refreshPromise && !isAuthPath(config.url)) {
+    try {
+      await refreshPromise;
+    } catch {
+      // The refresh failed; the request goes out unauthenticated and its 401 is handled below.
+    }
+  }
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
   return config;
 });
-
-let refreshPromise: Promise<void> | null = null;
 
 instance.interceptors.response.use(
   (response) => response,
@@ -80,11 +102,16 @@ instance.interceptors.response.use(
     }
 
     originalRequest._retry = true;
+
+    // The token was already refreshed after this request went out: just resend it, rather than
+    // spending another (rotating) refresh token.
+    const sentWith = originalRequest.headers?.Authorization;
+    if (accessToken && sentWith && sentWith !== `Bearer ${accessToken}`) {
+      return instance(originalRequest);
+    }
+
     try {
-      refreshPromise ??= handler().finally(() => {
-        refreshPromise = null;
-      });
-      await refreshPromise;
+      await sharedRefresh(handler);
       return instance(originalRequest);
     } catch (refreshError) {
       onUnauthorized?.();
