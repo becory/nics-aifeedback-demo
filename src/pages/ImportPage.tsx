@@ -191,6 +191,7 @@ export function ImportPage() {
             label="組織"
             value={organizationId}
             onChange={(e) => setOrganizationId(e.target.value)}
+            loading={orgsLoading}
             options={organizations.map((o) => ({
               value: o.id,
               label: `${o.name} (${o.code})`,

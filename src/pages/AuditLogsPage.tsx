@@ -43,6 +43,7 @@ export function AuditLogsPage() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [optionsLoading, setOptionsLoading] = useState(true);
 
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   // The params of the query currently on screen, so "載入更多" keeps paging the same query
@@ -66,6 +67,7 @@ export function AuditLogsPage() {
       if (cancelled) return;
       if (usersRes.status === "fulfilled") setUsers(usersRes.value.data.data);
       if (orgsRes.status === "fulfilled") setOrganizations(orgsRes.value.data.data);
+      setOptionsLoading(false);
     });
     return () => {
       cancelled = true;
@@ -189,7 +191,7 @@ export function AuditLogsPage() {
     {
       label: "操作者",
       fields: [
-        { value: "userId", label: "操作者", options: userOptions },
+        { value: "userId", label: "操作者", options: userOptions, loading: optionsLoading },
         { value: "userEmail", label: "操作者 Email", placeholder: "可查已刪除或不存在的帳號" },
         { value: "clientIp", label: "IP", placeholder: "例如：203.0.113.5" },
       ],
@@ -197,11 +199,12 @@ export function AuditLogsPage() {
     {
       label: "對象",
       fields: [
-        { value: "targetUserId", label: "對象使用者", options: userOptions },
+        { value: "targetUserId", label: "對象使用者", options: userOptions, loading: optionsLoading },
         {
           value: "organizationId",
           label: "組織",
           options: organizations.map((o) => ({ value: o.id, label: `${o.name} (${o.code})` })),
+          loading: optionsLoading,
         }
       ],
     },

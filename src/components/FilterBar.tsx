@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { addCondition, conditionKey, type Condition, type TimeSelectionOf } from "../lib/filterConditions";
-import { DateTimeInput } from "./ui";
+import { DateTimeInput, FieldSpinner } from "./ui";
 
 // Generic two-row filter bar (feedback overview, audit logs):
 //   ⏲ 時間區間：[preset] [preset] … [自訂｜開始 - 結束]
@@ -12,6 +12,8 @@ export interface FilterFieldDef<F extends string> {
   label: string;
   /** Dropdown values; omit for free text. */
   options?: { value: string; label: string }[];
+  /** The options are still being fetched: the dropdown shows 「載入中…」 with a spinner. */
+  loading?: boolean;
   placeholder?: string;
   /** Only one condition of this field at a time; adding another replaces it. */
   single?: boolean;
@@ -292,20 +294,28 @@ export function FilterBar<P extends string, F extends string>({
                 ))}
               </select>
               {currentDef?.options ? (
-                <select
-                  ref={keywordRef as React.RefObject<HTMLSelectElement>}
-                  aria-label={currentDef.label}
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  className="max-w-64 border-0 px-2 py-1 text-sm outline-none"
-                >
-                  <option value="">請選擇{currentDef.label}</option>
-                  {currentDef.options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
+                <span className="inline-flex items-center">
+                  <select
+                    ref={keywordRef as React.RefObject<HTMLSelectElement>}
+                    aria-label={currentDef.label}
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    disabled={currentDef.loading}
+                    aria-busy={currentDef.loading || undefined}
+                    className="max-w-64 border-0 px-2 py-1 text-sm outline-none"
+                  >
+                    <option value="">
+                      {currentDef.loading ? "載入中…" : `請選擇${currentDef.label}`}
                     </option>
-                  ))}
-                </select>
+                    {!currentDef.loading &&
+                      currentDef.options.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                  </select>
+                  {currentDef.loading && <FieldSpinner className="mr-2" />}
+                </span>
               ) : (
                 <input
                   ref={keywordRef as React.RefObject<HTMLInputElement>}

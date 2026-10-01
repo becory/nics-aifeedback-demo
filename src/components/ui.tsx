@@ -78,26 +78,42 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label: string
   error?: string
   options: { value: string; label: string }[]
+  /** Options are still being fetched: disabled, showing 「載入中…」 and a spinner. */
+  loading?: boolean
 }
 
-export function Select({ label, error, options, id, className = '', ...props }: SelectProps) {
+/** Small inline spinner for a field whose options are still loading. */
+export function FieldSpinner({ className = '' }: { className?: string }) {
+  return <span className={`cf-spinner cf-spinner--sm ${className}`} role="status" aria-label="載入中" />
+}
+
+export function Select({ label, error, options, loading, id, className = '', disabled, ...props }: SelectProps) {
   const selectId = id ?? label
   return (
     <div className="cf-field">
       <label htmlFor={selectId} className="cf-label">
         {label}
       </label>
-      <select
-        id={selectId}
-        className={`cf-select-native ${error ? 'cf-input--error' : ''} ${className}`}
-        {...props}
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          id={selectId}
+          className={`cf-select-native ${error ? 'cf-input--error' : ''} ${className}`}
+          disabled={disabled || loading}
+          aria-busy={loading || undefined}
+          {...props}
+        >
+          {loading ? (
+            <option value={props.value as string | undefined}>載入中…</option>
+          ) : (
+            options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))
+          )}
+        </select>
+        {loading && <FieldSpinner className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2" />}
+      </div>
       {error && <p className="mt-1 text-xs text-[#b42318]">{error}</p>}
     </div>
   )

@@ -203,6 +203,14 @@ textarea.cf-input {
   border-radius: 50%;
 }
 
+/* Inline in a field (e.g. a dropdown whose options are loading). */
+.cf-spinner--sm {
+  display: inline-block;
+  height: 14px;
+  width: 14px;
+  border-width: 2px;
+}
+
 @keyframes cf-spin {
   to {
     transform: rotate(360deg);
