@@ -78,6 +78,21 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+/* Our own arrow (same as .cf-select) instead of the native one, which Chrome pins to the edge. */
+.cf-select-native {
+  appearance: none;
+  background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23595959' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  padding-right: 36px;
+}
+
+.cf-select-native:disabled {
+  background-color: #f5f5f5;
+  color: #8c8c8c;
+  cursor: not-allowed;
+}
+
 .cf-input::placeholder {
   color: #8c8c8c;
 }
