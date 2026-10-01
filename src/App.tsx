@@ -13,10 +13,12 @@ import { ServiceListPage } from './pages/ServiceListPage'
 import { SecuritySettingsPage } from './pages/SecuritySettingsPage'
 import { FeedbackOverviewPage } from './pages/FeedbackOverviewPage'
 import { ImportPage } from './pages/ImportPage'
+import { TopProgressBar } from './components/TopProgressBar'
 
 export default function App() {
   return (
     <AuthProvider>
+      <TopProgressBar />
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route element={<GuestRoute />}>

@@ -329,3 +329,42 @@ textarea.cf-input {
   background: #fff;
   padding: 16px;
 }
+
+/* Global top progress bar (TopProgressBar): creeps forward while requests are in flight, fills
+   and fades when they finish. Above modals, never takes clicks. Durations match TopProgressBar. */
+.cf-top-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  height: 3px;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 300ms ease,
+    visibility 0s linear 300ms;
+}
+
+.cf-top-progress--visible {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 300ms ease;
+}
+
+.cf-top-progress__bar {
+  height: 100%;
+  background: #0055dc;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-top-progress,
+  .cf-top-progress--visible,
+  .cf-top-progress__bar {
+    transition: none;
+  }
+}

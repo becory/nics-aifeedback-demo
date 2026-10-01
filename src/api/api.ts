@@ -142,3 +142,42 @@ instance.interceptors.response.use(
     }
   },
 );
+
+// ---- In-flight request count, for the global top progress bar ----
+// Registered after the auth interceptors on purpose: axios runs request interceptors in reverse
+// registration order and response interceptors in order, so the count starts before a request
+// waits on a token refresh and ends only after a 401 retry has settled.
+
+let pendingRequests = 0;
+const pendingListeners = new Set<() => void>();
+
+function changePending(delta: number) {
+  pendingRequests += delta;
+  pendingListeners.forEach((listener) => listener());
+}
+
+export const getPendingRequestCount = () => pendingRequests;
+
+export function subscribePendingRequests(listener: () => void) {
+  pendingListeners.add(listener);
+  return () => {
+    pendingListeners.delete(listener);
+  };
+}
+
+instance.interceptors.request.use((config) => {
+  changePending(1);
+  return config;
+});
+
+// A request interceptor that rejects still lands in this onRejected, so every +1 gets its -1.
+instance.interceptors.response.use(
+  (response) => {
+    changePending(-1);
+    return response;
+  },
+  (error) => {
+    changePending(-1);
+    throw error;
+  },
+);
