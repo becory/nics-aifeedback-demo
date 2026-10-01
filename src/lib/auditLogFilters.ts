@@ -25,7 +25,6 @@ export type AuditFilterField =
   | 'userEmail'
   | 'targetUserId'
   | 'organizationId'
-  | 'agentId'
   | 'clientIp'
 
 export const AUDIT_FILTER_FIELDS: AuditFilterField[] = [
@@ -35,7 +34,6 @@ export const AUDIT_FILTER_FIELDS: AuditFilterField[] = [
   'userEmail',
   'targetUserId',
   'organizationId',
-  'agentId',
   'clientIp',
 ]
 
@@ -89,7 +87,6 @@ export function buildAuditLogParams(filters: AuditLogFilters, pageSize: number):
     userEmail: valuesOf('userEmail'),
     targetUserId: valuesOf('targetUserId'),
     organizationId: valuesOf('organizationId'),
-    agentId: valuesOf('agentId'),
     clientIp: valuesOf('clientIp'),
     // Audit timestamps are UTC; send the local picker time as an explicit instant.
     from: range.from ? new Date(range.from).toISOString() : undefined,

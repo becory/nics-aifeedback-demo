@@ -17,6 +17,16 @@ function partValue(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPa
   return parts.find((p) => p.type === type)?.value ?? ''
 }
 
+/** e.g. 2026-06-24 (Taipei date) */
+export function formatDisplayDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '—'
+
+  const parts = getTaipeiParts(date)
+  return `${partValue(parts, 'year')}-${partValue(parts, 'month')}-${partValue(parts, 'day')}`
+}
+
 /** e.g. 2026-06-24 16:49:39 GMT+8 */
 export function formatDisplayTime(iso: string | null | undefined): string {
   if (!iso) return '—'

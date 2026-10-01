@@ -52,7 +52,7 @@ export function previousTimeRange(range: TimeRange, now = new Date()): TimeRange
   }
 }
 
-export type ServiceConditionField = 'serviceName' | 'serviceCode' | 'serviceHost' | 'organization' | 'agent'
+export type ServiceConditionField = 'serviceName' | 'serviceCode' | 'serviceHost' | 'organization'
 export type FeedbackConditionField = 'feedbackRating' | 'device' | 'ipCountry' | 'sessionId'
 export type ConditionField = ServiceConditionField | FeedbackConditionField
 
@@ -67,7 +67,6 @@ export const CONDITION_FIELD_GROUPS: {
       { value: 'serviceCode', label: '服務代碼' },
       { value: 'serviceHost', label: '網域' },
       { value: 'organization', label: '組織' },
-      { value: 'agent', label: '服務代理' },
     ],
   },
   {
@@ -85,7 +84,7 @@ export const CONDITION_FIELD_LABELS = Object.fromEntries(
   CONDITION_FIELD_GROUPS.flatMap((g) => g.fields.map((f) => [f.value, f.label])),
 ) as Record<ConditionField, string>
 
-const SERVICE_FIELDS: ServiceConditionField[] = ['serviceName', 'serviceCode', 'serviceHost', 'organization', 'agent']
+const SERVICE_FIELDS: ServiceConditionField[] = ['serviceName', 'serviceCode', 'serviceHost', 'organization']
 
 export function isServiceField(field: ConditionField): field is ServiceConditionField {
   return (SERVICE_FIELDS as ConditionField[]).includes(field)
@@ -105,8 +104,6 @@ function serviceFieldValues(service: Service, field: ServiceConditionField): str
       return [service.host]
     case 'organization':
       return [service.organizationName]
-    case 'agent':
-      return [service.agentName, service.agentCode]
   }
 }
 

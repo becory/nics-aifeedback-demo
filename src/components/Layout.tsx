@@ -4,7 +4,6 @@ import { useAuth } from "../lib/auth";
 import {
   ServiceIcon,
   UserIcon,
-  AgentIcon,
   ListIcon,
   OverviewIcon,
   ScoreIcon,
@@ -13,7 +12,6 @@ import {
 } from "./NavIcons";
 
 const adminNavItems = [
-  { to: "/agents", label: "服務代理", Icon: AgentIcon },
   { to: "/services", label: "服務管理", Icon: ServiceIcon },
   { to: "/users", label: "使用者管理", Icon: UserIcon },
   { to: "/scores", label: "分數管理", Icon: ScoreIcon },

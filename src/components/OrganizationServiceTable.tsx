@@ -21,12 +21,6 @@ interface OrgServices {
   services: Service[];
 }
 
-export interface ServiceRowContext {
-  /** Whether this service's detail sub-row is open. */
-  detailOpen: boolean;
-  toggleDetail: () => void;
-}
-
 interface OrganizationServiceTableProps {
   organizations: Organization[];
   /** Loads one organization's services — called when its row is first expanded. */
@@ -38,9 +32,7 @@ interface OrganizationServiceTableProps {
   /** Narrows the services shown under each organization (the loaded list is unchanged). */
   serviceFilter?: (service: Service) => boolean;
   orgActions?: (org: Organization) => ReactNode;
-  serviceActions?: (service: Service, ctx: ServiceRowContext) => ReactNode;
-  /** Content of a service's detail sub-row, opened through ctx.toggleDetail. */
-  renderServiceDetail?: (service: Service) => ReactNode;
+  serviceActions?: (service: Service) => ReactNode;
   /** Extra line inside an expanded organization, above its services (e.g. an add button). */
   renderOrgToolbar?: (org: Organization) => ReactNode;
   emptyServicesMessage?: string;
@@ -58,7 +50,6 @@ export function OrganizationServiceTable({
   serviceFilter,
   orgActions,
   serviceActions,
-  renderServiceDetail,
   renderOrgToolbar,
   emptyServicesMessage = "此組織尚無服務",
 }: OrganizationServiceTableProps) {
@@ -66,7 +57,6 @@ export function OrganizationServiceTable({
   const [byOrg, setByOrg] = useState<Record<string, OrgServices>>(() =>
     Object.fromEntries(initiallyExpanded.map((id) => [id, { loading: true, error: "", services: [] }])),
   );
-  const [detailId, setDetailId] = useState<string | null>(null);
 
   const fetchOrg = (orgId: string) =>
     loadServices(orgId)
@@ -98,6 +88,9 @@ export function OrganizationServiceTable({
       return;
     }
     expanded.forEach(fetchOrg);
+    // Collapsed organizations may be stale too (a service can move into one): drop their cache so
+    // they reload when next expanded.
+    setByOrg((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => expanded.has(id))));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
 
@@ -125,6 +118,7 @@ export function OrganizationServiceTable({
             <th className="w-10" />
             <th className="px-4 py-3 font-medium text-slate-600">組織名稱</th>
             <th className="px-4 py-3 font-medium text-slate-600">組織代碼</th>
+            <th className="px-4 py-3 font-medium text-slate-600">服務數量</th>
             {hasOrgActions && <th className="px-4 py-3 text-right font-medium text-slate-600">操作</th>}
           </tr>
         </thead>
@@ -152,6 +146,7 @@ export function OrganizationServiceTable({
                   </td>
                   <td className="px-4 py-3 font-medium text-slate-900">{org.name}</td>
                   <td className="px-4 py-3 font-mono text-slate-600">{org.code}</td>
+                  <td className="px-4 py-3 text-slate-600">{org.serviceCount ?? "—"}</td>
                   {hasOrgActions && (
                     <td className="whitespace-nowrap px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                       {orgActions(org)}
@@ -161,7 +156,7 @@ export function OrganizationServiceTable({
 
                 {open && (
                   <tr>
-                    <td colSpan={hasOrgActions ? 4 : 3} className="bg-slate-50 px-4 py-3 sm:pl-12">
+                    <td colSpan={hasOrgActions ? 5 : 4} className="bg-slate-50 px-4 py-3 sm:pl-12">
                       {renderOrgToolbar && <div className="mb-2">{renderOrgToolbar(org)}</div>}
                       {!state || state.loading ? (
                         <p className="py-3 text-sm text-slate-400">載入服務中…</p>
@@ -180,7 +175,6 @@ export function OrganizationServiceTable({
                             <thead>
                               <tr>
                                 <th className="px-4 py-2 font-medium text-slate-600">服務名稱</th>
-                                <th className="px-4 py-2 font-medium text-slate-600">所屬代理</th>
                                 <th className="px-4 py-2 font-medium text-slate-600">服務代碼</th>
                                 <th className="px-4 py-2 font-medium text-slate-600">網域</th>
                                 {serviceActions && (
@@ -189,37 +183,16 @@ export function OrganizationServiceTable({
                               </tr>
                             </thead>
                             <tbody>
-                              {services.map((svc) => {
-                                const detailOpen = detailId === svc.id;
-                                const ctx: ServiceRowContext = {
-                                  detailOpen,
-                                  toggleDetail: () => setDetailId(detailOpen ? null : svc.id),
-                                };
-                                return (
-                                  <Fragment key={svc.id}>
-                                    <tr>
-                                      <td className="px-4 py-2 font-medium text-slate-900">{svc.name}</td>
-                                      <td className="px-4 py-2 text-slate-600">
-                                        {svc.agentId ? `${svc.agentName} (${svc.agentCode})` : "—"}
-                                      </td>
-                                      <td className="px-4 py-2 font-mono text-slate-600">{svc.code}</td>
-                                      <td className="px-4 py-2 font-mono text-slate-600">{svc.host || "—"}</td>
-                                      {serviceActions && (
-                                        <td className="whitespace-nowrap px-4 py-2 text-right">
-                                          {serviceActions(svc, ctx)}
-                                        </td>
-                                      )}
-                                    </tr>
-                                    {detailOpen && renderServiceDetail && (
-                                      <tr>
-                                        <td colSpan={serviceActions ? 5 : 4} className="bg-slate-50 px-4 py-4">
-                                          {renderServiceDetail(svc)}
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </Fragment>
-                                );
-                              })}
+                              {services.map((svc) => (
+                                <tr key={svc.id}>
+                                  <td className="px-4 py-2 font-medium text-slate-900">{svc.name}</td>
+                                  <td className="px-4 py-2 font-mono text-slate-600">{svc.code}</td>
+                                  <td className="px-4 py-2 font-mono text-slate-600">{svc.host || "—"}</td>
+                                  {serviceActions && (
+                                    <td className="whitespace-nowrap px-4 py-2 text-right">{serviceActions(svc)}</td>
+                                  )}
+                                </tr>
+                              ))}
                             </tbody>
                           </table>
                         </div>

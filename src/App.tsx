@@ -7,7 +7,6 @@ import { Setup2FAPage } from './pages/Setup2FAPage'
 import { Verify2FAPage } from './pages/Verify2FAPage'
 import { ServicesPage } from './pages/ServicesPage'
 import { UsersPage } from './pages/UsersPage'
-import { AgentsPage } from './pages/AgentsPage'
 import { ScoresPage } from './pages/ScoresPage'
 import { AuditLogsPage } from './pages/AuditLogsPage'
 import { ServiceListPage } from './pages/ServiceListPage'
@@ -45,7 +44,8 @@ export default function App() {
               <Route element={<AdminRoute />}>
                 <Route path="/organizations" element={<Navigate to="/services" replace />} />
                 <Route path="/services" element={<ServicesPage />} />
-                <Route path="/agents" element={<AgentsPage />} />
+                {/* Agents are gone; keys are managed per organization on the services page. */}
+                <Route path="/agents" element={<Navigate to="/services" replace />} />
                 <Route path="/users" element={<UsersPage />} />
                 <Route path="/scores" element={<ScoresPage />} />
                 <Route path="/audit-logs" element={<AuditLogsPage />} />

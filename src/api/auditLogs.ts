@@ -9,7 +9,6 @@ export interface GetAuditLogsParams {
   userEmail?: string[]
   targetUserId?: string[]
   organizationId?: string[]
-  agentId?: string[]
   resource?: string[]
   clientIp?: string[]
   minSeverity?: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL'

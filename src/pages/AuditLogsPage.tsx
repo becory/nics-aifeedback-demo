@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getAgents, getAuditLogs, getOrganizations, getUsers } from "../api";
+import { getAuditLogs, getOrganizations, getUsers } from "../api";
 import type { GetAuditLogsParams } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import { AuditLogDetailModal } from "../components/AuditLogDetailModal";
@@ -23,7 +23,7 @@ import {
   type AuditLogFilters,
 } from "../lib/auditLogFilters";
 import { formatDisplayTime } from "../lib/datetime";
-import type { Agent, AuditLogEntry, Organization, User } from "../types";
+import type { AuditLogEntry, Organization, User } from "../types";
 
 const PAGE_SIZE = 50;
 
@@ -43,7 +43,6 @@ export function AuditLogsPage() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
 
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   // The params of the query currently on screen, so "載入更多" keeps paging the same query
@@ -63,14 +62,11 @@ export function AuditLogsPage() {
     let cancelled = false;
     // Dropdown sources are best-effort: without them the filters still work via email/IP and
     // the list falls back to raw ids.
-    Promise.allSettled([getUsers(), getOrganizations(), getAgents()]).then(
-      ([usersRes, orgsRes, agentsRes]) => {
-        if (cancelled) return;
-        if (usersRes.status === "fulfilled") setUsers(usersRes.value.data.data);
-        if (orgsRes.status === "fulfilled") setOrganizations(orgsRes.value.data.data);
-        if (agentsRes.status === "fulfilled") setAgents(agentsRes.value.data.data);
-      },
-    );
+    Promise.allSettled([getUsers(), getOrganizations()]).then(([usersRes, orgsRes]) => {
+      if (cancelled) return;
+      if (usersRes.status === "fulfilled") setUsers(usersRes.value.data.data);
+      if (orgsRes.status === "fulfilled") setOrganizations(orgsRes.value.data.data);
+    });
     return () => {
       cancelled = true;
     };
@@ -142,7 +138,6 @@ export function AuditLogsPage() {
     () => new Map(organizations.map((o) => [o.id, o])),
     [organizations],
   );
-  const agentsById = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents]);
 
   const actorLabel = (entry: AuditLogEntry): string => {
     const user = entry.userId ? usersById.get(entry.userId) : undefined;
@@ -157,10 +152,14 @@ export function AuditLogsPage() {
       const user = targetUserId ? usersById.get(targetUserId) : undefined;
       return user?.name ?? targetEmail ?? targetUserId!;
     }
+    // Older agent.* events (still within retention) carry only the agent's code/id.
     const agentId = propertyString(entry, "agentId");
     const agentCode = propertyString(entry, "agentCode");
-    if (agentCode || agentId) {
-      return `服務代理 ${agentCode ?? (agentId && agentsById.get(agentId)?.code) ?? agentId}`;
+    if (agentCode || agentId) return `服務代理 ${agentCode ?? agentId}`;
+    const keyPreview = propertyString(entry, "keyPreview");
+    if (keyPreview && entry.eventType?.startsWith("organizationKey.")) {
+      const org = orgsById.get(propertyString(entry, "organizationId") ?? "");
+      return `離線金鑰 ${keyPreview}${org ? `（${org.name}）` : ""}`;
     }
     const serviceCode = propertyString(entry, "serviceCode");
     if (serviceCode) return `服務 ${serviceCode}`;
@@ -203,12 +202,7 @@ export function AuditLogsPage() {
           value: "organizationId",
           label: "組織",
           options: organizations.map((o) => ({ value: o.id, label: `${o.name} (${o.code})` })),
-        },
-        {
-          value: "agentId",
-          label: "服務代理",
-          options: agents.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })),
-        },
+        }
       ],
     },
   ];

@@ -1,40 +1,37 @@
 import { useEffect, useState } from "react";
 import { useSubmitGuard } from "../lib/useSubmitGuard";
 import { useSearchParams } from "react-router-dom";
-import type { Agent, Organization, Service } from "../types";
+import type { Organization, Service } from "../types";
 import {
   createOrganization,
   createService,
   deleteOrganization,
   deleteService,
-  getAgents,
   getOrganizations,
   getServices,
   updateOrganization,
   updateService,
 } from "../api";
 import { getApiErrorMessage } from "../api/api";
-import { AgentDetailPanel } from "../components/AgentDetailPanel";
 import { Modal } from "../components/Modal";
+import { OrganizationKeysModal } from "../components/OrganizationKeysModal";
 import { OrganizationServiceTable } from "../components/OrganizationServiceTable";
-import { ServiceSdkModal } from "../components/ServiceSdkModal";
 import { Button, EmptyState, Input, LoadingState, PageHeader, Select } from "../components/ui";
 
 /** Admin: organizations (create/edit/delete) with each one's services nested underneath. */
 export function ServicesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  // ?code=X (e.g. from the agents page) opens straight onto that service.
+  // ?code=X opens straight onto that service.
   const [codeFilter, setCodeFilter] = useState(searchParams.get("code") ?? "");
 
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
   const [initiallyExpanded, setInitiallyExpanded] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
   const [servicesRefreshKey, setServicesRefreshKey] = useState(0);
 
-  const [sdkService, setSdkService] = useState<Service | null>(null);
+  const [keysOrg, setKeysOrg] = useState<Organization | null>(null);
 
   // Organization modal
   const [orgModalOpen, setOrgModalOpen] = useState(false);
@@ -48,7 +45,6 @@ export function ServicesPage() {
   const [editingSvc, setEditingSvc] = useState<Service | null>(null);
   const [svcOrgId, setSvcOrgId] = useState("");
   const [svcName, setSvcName] = useState("");
-  const [svcAgentId, setSvcAgentId] = useState("");
   const [svcCode, setSvcCode] = useState("");
   const [svcHost, setSvcHost] = useState("");
   const [svcError, setSvcError] = useState("");
@@ -57,19 +53,13 @@ export function ServicesPage() {
     let cancelled = false;
     Promise.all([
       getOrganizations({ IsActive: true }),
-      getAgents(),
       codeFilter ? getServices({ code: codeFilter }) : Promise.resolve(null),
     ])
-      .then(([orgs, agentsRes, linked]) => {
+      .then(([orgs, linked]) => {
         if (cancelled) return;
         setOrganizations(orgs.data.data);
-        setAgents(agentsRes.data.data);
-        // Every organization starts expanded; a ?code= deep link opens just the one it points at.
-        setInitiallyExpanded(
-          linked
-            ? [...new Set(linked.data.data.map((s) => s.organizationId))]
-            : orgs.data.data.map((o) => o.id),
-        );
+        // Every organization starts collapsed; a ?code= deep link opens just the one it points at.
+        setInitiallyExpanded(linked ? [...new Set(linked.data.data.map((s) => s.organizationId))] : []);
         setLoadError("");
       })
       .catch((error) => {
@@ -97,7 +87,20 @@ export function ServicesPage() {
     setSearchParams({});
   };
 
-  const agentsOfOrg = (orgId: string) => agents.filter((a) => a.organizationId === orgId);
+  // After a service create/move/delete: refresh the per-org service counts in place, without
+  // remounting the table (which would collapse every organization).
+  const refreshServiceCounts = () => {
+    getOrganizations({ IsActive: true })
+      .then((orgs) => setOrganizations(orgs.data.data))
+      .catch(() => {
+        // Counts stay stale until the next reload; the services themselves are already refreshed.
+      });
+  };
+
+  const afterServiceChange = () => {
+    setServicesRefreshKey((k) => k + 1);
+    refreshServiceCounts();
+  };
 
   // ---- Organizations ----
   const openCreateOrg = () => {
@@ -161,7 +164,6 @@ export function ServicesPage() {
     setSvcName("");
     setSvcCode("");
     setSvcHost("");
-    setSvcAgentId(agentsOfOrg(orgId)[0]?.id ?? "");
     setSvcError("");
     setSvcModalOpen(true);
   };
@@ -172,7 +174,6 @@ export function ServicesPage() {
     setSvcName(svc.name);
     setSvcCode(svc.code);
     setSvcHost(svc.host);
-    setSvcAgentId(svc.agentId);
     setSvcError("");
     setSvcModalOpen(true);
   };
@@ -183,8 +184,8 @@ export function ServicesPage() {
       setSvcError("請輸入服務名稱");
       return;
     }
-    if (!svcAgentId) {
-      setSvcError("請選擇所屬服務代理");
+    if (!svcOrgId) {
+      setSvcError("請選擇所屬組織");
       return;
     }
     if (!svcCode.trim()) {
@@ -195,8 +196,18 @@ export function ServicesPage() {
       setSvcError("請輸入網域");
       return;
     }
+    if (
+      editingSvc &&
+      svcOrgId !== editingSvc.organizationId &&
+      !confirm(
+        `確定要將服務「${editingSvc.name}」移至組織「${orgNameOf(svcOrgId)}」？\n\n` +
+          "這個服務所有的回饋資料都會改由新組織檢視，原組織將看不到；過去的匯入紀錄仍留在原組織。",
+      )
+    ) {
+      return;
+    }
     const payload = {
-      agentId: svcAgentId,
+      organizationId: svcOrgId,
       name: svcName.trim(),
       code: svcCode.trim().toUpperCase(),
       host: svcHost.trim().toLowerCase(),
@@ -213,7 +224,7 @@ export function ServicesPage() {
       return;
     }
     setSvcModalOpen(false);
-    setServicesRefreshKey((k) => k + 1);
+    afterServiceChange();
   };
 
   const handleDeleteService = async (svc: Service) => {
@@ -225,16 +236,16 @@ export function ServicesPage() {
       alert(`刪除服務時發生錯誤${detail ? `：${detail}` : ""}`);
       return;
     }
-    setServicesRefreshKey((k) => k + 1);
+    afterServiceChange();
   };
 
-  const svcOrgAgents = agentsOfOrg(svcOrgId);
+  const orgNameOf = (orgId: string) => organizations.find((o) => o.id === orgId)?.name ?? "—";
 
   return (
     <>
       <PageHeader
         title="服務管理"
-        description="管理組織，以及各組織服務代理下的服務項目"
+        description="管理組織、組織下的服務，以及各組織的離線金鑰"
         action={<Button onClick={openCreateOrg}>新增組織</Button>}
       />
 
@@ -281,6 +292,9 @@ export function ServicesPage() {
             }
             orgActions={(org) => (
               <>
+                <button type="button" onClick={() => setKeysOrg(org)} className="cf-link mr-3">
+                  檢視離線金鑰
+                </button>
                 <button type="button" onClick={() => openEditOrg(org)} className="cf-link mr-3">
                   編輯
                 </button>
@@ -295,42 +309,19 @@ export function ServicesPage() {
             )}
             renderOrgToolbar={(org) => (
               <div className="flex items-center justify-between gap-3">
-                {agentsOfOrg(org.id).length === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    此組織尚無服務代理，請先至「服務代理」頁建立，才能新增服務。
-                  </p>
-                ) : (
-                  <h3 className="text-sm font-semibold text-slate-800">{org.name} 的服務</h3>
-                )}
+                <h3 className="text-sm font-semibold text-slate-800">{org.name} 的服務</h3>
                 <button
                   type="button"
                   onClick={() => openCreateService(org.id)}
-                  disabled={agentsOfOrg(org.id).length === 0}
                   // Primary but smaller than the page-level 新增組織, since it acts on one org.
-                  className="cf-btn cf-btn--primary h-7 px-3! py-0! text-xs! disabled:opacity-40"
+                  className="cf-btn cf-btn--primary h-7 px-3! py-0! text-xs!"
                 >
                   ＋新增服務
                 </button>
               </div>
             )}
-            serviceActions={(svc, { detailOpen, toggleDetail }) => (
+            serviceActions={(svc) => (
               <>
-                <button
-                  type="button"
-                  onClick={toggleDetail}
-                  disabled={!svc.agentId}
-                  className="cf-link mr-3 disabled:opacity-40"
-                >
-                  {detailOpen ? "收合代理資料" : "服務代理詳情"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSdkService(svc)}
-                  disabled={!svc.agentId}
-                  className="cf-link mr-3 disabled:opacity-40"
-                >
-                  SDK
-                </button>
                 <button type="button" onClick={() => openEditService(svc)} className="cf-link mr-3">
                   編輯
                 </button>
@@ -343,19 +334,11 @@ export function ServicesPage() {
                 </button>
               </>
             )}
-            renderServiceDetail={(svc) => (
-              <AgentDetailPanel
-                agentId={svc.agentId}
-                organizations={organizations}
-                serviceId={svc.id}
-                linkToAgentsPage
-              />
-            )}
           />
         </div>
       )}
 
-      <ServiceSdkModal service={sdkService} onClose={() => setSdkService(null)} />
+      <OrganizationKeysModal organization={keysOrg} onClose={() => setKeysOrg(null)} />
 
       <Modal
         open={orgModalOpen}
@@ -389,19 +372,18 @@ export function ServicesPage() {
       >
         <div className="space-y-4">
           {svcError && <div className="cf-alert cf-alert--error">{svcError}</div>}
-          <p className="text-sm text-slate-600">
-            所屬組織：{organizations.find((o) => o.id === svcOrgId)?.name ?? "—"}
-          </p>
-          <Input label="服務名稱" value={svcName} onChange={(e) => setSvcName(e.target.value)} />
           <Select
-            label="所屬服務代理"
-            value={svcAgentId}
-            onChange={(e) => setSvcAgentId(e.target.value)}
-            options={[
-              { value: "", label: "請選擇服務代理" },
-              ...svcOrgAgents.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })),
-            ]}
+            label="所屬組織"
+            value={svcOrgId}
+            onChange={(e) => setSvcOrgId(e.target.value)}
+            options={organizations.map((o) => ({ value: o.id, label: `${o.name} (${o.code})` }))}
           />
+          {editingSvc && svcOrgId !== editingSvc.organizationId && (
+            <p className="rounded-lg bg-amber-50 px-4 py-3 text-xs text-amber-700">
+              變更所屬組織後，這個服務所有的回饋資料都會改由新組織檢視，原組織將看不到；過去的匯入紀錄仍留在原組織。
+            </p>
+          )}
+          <Input label="服務名稱" value={svcName} onChange={(e) => setSvcName(e.target.value)} />
           <Input
             label="服務代碼"
             value={svcCode}

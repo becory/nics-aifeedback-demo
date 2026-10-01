@@ -179,8 +179,8 @@ export function ImportPage() {
         {lastLog && (
           <p className="mb-4 text-xs text-slate-500">
             上次匯入：
-            {lastLog.agentName
-              ? `${lastLog.agentName} (${lastLog.agentCode})，金鑰 ${lastLog.keyPreview ?? "—"}`
+            {lastLog.keyId
+              ? `金鑰 ${lastLog.keyDescription ? `${lastLog.keyDescription}（${lastLog.keyId}）` : lastLog.keyId}`
               : "—"}
             ，{lastLog.requestedByName ?? lastLog.requestedByEmail ?? "—"}
             ，{formatDisplayTime(lastLog.requestedAt)}
@@ -259,8 +259,8 @@ export function ImportPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium text-slate-600">時間</th>
                   <th className="px-4 py-3 font-medium text-slate-600">匯入者</th>
-                  <th className="px-4 py-3 font-medium text-slate-600">代理</th>
-                  <th className="px-4 py-3 font-medium text-slate-600">金鑰</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">金鑰 UUID</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">金鑰說明</th>
                   <th className="px-4 py-3 font-medium text-slate-600">資料範圍</th>
                   <th className="px-4 py-3 font-medium text-slate-600">狀態</th>
                   <th className="px-4 py-3 font-medium text-slate-600">總筆數</th>
@@ -291,11 +291,11 @@ export function ImportPage() {
                           log.requestedByEmail ?? "—"
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {log.agentName ? `${log.agentName} (${log.agentCode})` : "—"}
+                      <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                        {log.keyId ?? "—"}
                       </td>
-                      <td className="px-4 py-3 font-mono text-slate-600">
-                        {log.keyPreview ?? "—"}
+                      <td className="px-4 py-3 text-slate-600">
+                        {log.keyDescription ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {formatDataRange(log)}
