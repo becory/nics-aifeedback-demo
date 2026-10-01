@@ -2,7 +2,10 @@ import axios from "axios";
 
 export const instance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  timeout: 5000,
+  // Generous enough for a Cloud Run cold start (and for /auth/refresh: the server rotates the
+  // refresh token, so giving up on a slow response would drop the new cookie while the old one
+  // is already revoked), short enough that a hung request still surfaces an error and 重試.
+  timeout: 30000,
   withCredentials: true
 });
 

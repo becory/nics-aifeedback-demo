@@ -14,10 +14,7 @@ export const post2FA = (pendingToken: string, code: string) => instance.post<Two
 
 export const getUserInfo = () => instance.get('/auth/me')
 
-// Longer than the 5s default: the server rotates the refresh token, so a client-side timeout on a
-// slow (cold-start) response would drop the new cookie while the old one is already revoked.
-export const postRefresh = () =>
-  instance.post<TwoFactorAuthResponse>('/auth/refresh', {}, { withCredentials: true, timeout: 30000 })
+export const postRefresh = () => instance.post<TwoFactorAuthResponse>('/auth/refresh', {}, { withCredentials: true })
 
 export const postLogout = () => instance.post<null>('/auth/logout')
 
