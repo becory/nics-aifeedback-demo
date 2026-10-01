@@ -46,6 +46,8 @@ function formatDataRange(log: ImportLog): string {
 export function ImportPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState("");
+  const [orgsLoading, setOrgsLoading] = useState(true);
+  const [orgsError, setOrgsError] = useState("");
   const [logs, setLogs] = useState<ImportLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -60,11 +62,31 @@ export function ImportPage() {
   const [expandedLoading, setExpandedLoading] = useState(false);
   const [expandedError, setExpandedError] = useState("");
 
+  // A failed request must surface as an error: left unhandled, the empty dropdown reads as
+  // 「尚未被指派至任何組織」 even though the user has organizations.
+  const fetchOrganizations = () =>
+    getOrganizations({ currentUser: true })
+      .then((res) => {
+        setOrganizations(res.data.data);
+        setOrganizationId((current) => current || res.data.data[0]?.id || "");
+      })
+      .catch((error) => {
+        const detail =
+          axios.isAxiosError(error) && error.code === "ECONNABORTED"
+            ? "伺服器回應逾時，請稍後重試"
+            : getApiErrorMessage(error);
+        setOrgsError(`載入組織資料時發生錯誤${detail ? `：${detail}` : ""}`);
+      })
+      .finally(() => setOrgsLoading(false));
+
+  const retryOrganizations = () => {
+    setOrgsLoading(true);
+    setOrgsError("");
+    fetchOrganizations();
+  };
+
   useEffect(() => {
-    getOrganizations({ currentUser: true }).then((res) => {
-      setOrganizations(res.data.data);
-      setOrganizationId((current) => current || res.data.data[0]?.id || "");
-    });
+    fetchOrganizations();
   }, []);
 
   const refreshLogs = async (orgId: string) => {
@@ -232,6 +254,15 @@ export function ImportPage() {
         )}
       </div>
 
+      {orgsError && (
+        <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
+          <span>{orgsError}</span>
+          <button type="button" onClick={retryOrganizations} className="cf-link shrink-0">
+            重試
+          </button>
+        </div>
+      )}
+
       {loadError && (
         <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
           <span>{loadError}</span>
@@ -245,10 +276,10 @@ export function ImportPage() {
         </div>
       )}
 
-      {loading ? (
+      {loading || orgsLoading ? (
         <LoadingState />
       ) : !organizationId ? (
-        <EmptyState message="您尚未被指派至任何組織，無法匯入資料" />
+        !orgsError && <EmptyState message="您尚未被指派至任何組織，無法匯入資料" />
       ) : logs.length === 0 ? (
         <EmptyState message="尚無匯入紀錄" />
       ) : (
