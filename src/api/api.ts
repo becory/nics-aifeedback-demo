@@ -7,9 +7,16 @@ export const instance = axios.create({
 });
 
 let accessToken: string | null = null;
+// Local clock time (ms) the access token expires, from the API's expiresIn — counted from when
+// we received it rather than from the JWT's exp, so a wrong client clock can't skew it.
+let accessTokenExpiresAt: number | null = null;
 
-export function setAccessToken(token: string | null) {
+/** expiresInSeconds comes with every token response; without it there's no early refresh. */
+export function setAccessToken(token: string | null, expiresInSeconds?: number) {
+  // The same token re-synced from React state keeps the expiry recorded when it arrived.
+  if (token === accessToken && expiresInSeconds === undefined) return;
   accessToken = token;
+  accessTokenExpiresAt = token && expiresInSeconds ? Date.now() + expiresInSeconds * 1000 : null;
 }
 
 type RefreshHandler = () => Promise<void>;
@@ -55,7 +62,8 @@ const NO_REFRESH_RETRY_PATHS = ["/auth/login", "/auth/2fa", "/auth/refresh", "/a
 
 const isAuthPath = (url?: string) => !!url?.startsWith("/auth/");
 
-// Refresh tokens rotate (each one is single-use), so concurrent 401s must share one refresh.
+// Refresh tokens rotate (each one is single-use), so every refresh — early or after a 401 —
+// goes through this one shared promise.
 let refreshPromise: Promise<void> | null = null;
 
 function sharedRefresh(handler: RefreshHandler): Promise<void> {
@@ -65,15 +73,27 @@ function sharedRefresh(handler: RefreshHandler): Promise<void> {
   return refreshPromise;
 }
 
+// Refresh this long before expiry, so a request never goes out with a token about to lapse.
+// Only requests trigger it: an idle tab doesn't renew its session on its own.
+const EARLY_REFRESH_MS = 60_000;
+
+const tokenExpiringSoon = () =>
+  !!accessToken && accessTokenExpiresAt !== null && accessTokenExpiresAt - Date.now() < EARLY_REFRESH_MS;
+
 instance.interceptors.request.use(async (config) => {
-  // A request sent while a refresh is in flight would carry the expiring token and come back
-  // 401 after the refresh finished, starting another one. Wait and send the new token instead.
-  // (Auth calls skip this: the refresh itself calls /auth/me, which would wait on its own refresh.)
-  if (refreshPromise && !isAuthPath(config.url)) {
-    try {
-      await refreshPromise;
-    } catch {
-      // The refresh failed; the request goes out unauthenticated and its 401 is handled below.
+  // Auth calls skip this: the refresh itself calls /auth/me, which would wait on its own refresh.
+  if (!isAuthPath(config.url)) {
+    const handler = refreshHandler;
+    if (!refreshPromise && handler && tokenExpiringSoon()) sharedRefresh(handler);
+    // Also covers a refresh started by another request's 401: without waiting, this request
+    // would carry the old token and come back 401 after the refresh finished.
+    if (refreshPromise) {
+      try {
+        await refreshPromise;
+      } catch {
+        // The refresh failed. The request goes out with whatever token there is; a 401 is
+        // handled below (and logs out only if refreshing fails again).
+      }
     }
   }
   if (accessToken) {

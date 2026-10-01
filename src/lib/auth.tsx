@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshSession = useCallback(async () => {
     const refreshData = await postRefresh();
-    setAccessToken(refreshData.data.accessToken);
+    setAccessToken(refreshData.data.accessToken, refreshData.data.expiresIn);
     setSession((prev) =>
       prev
         ? { ...prev, accessToken: refreshData.data.accessToken }
@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const check2FA = await post2FA(session.pendingToken, code);
-        setAccessToken(check2FA.data.accessToken);
+        setAccessToken(check2FA.data.accessToken, check2FA.data.expiresIn);
         setSession((prev) =>
           prev ? { ...prev, accessToken: check2FA.data.accessToken } : prev,
         );
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!session?.pendingToken) return "請先登入";
       try {
         const confirm2FA = await postConfirm2FA(session.pendingToken, code);
-        setAccessToken(confirm2FA.data.accessToken);
+        setAccessToken(confirm2FA.data.accessToken, confirm2FA.data.expiresIn);
         setSession((prev) =>
           prev ? { ...prev, accessToken: confirm2FA.data.accessToken } : prev,
         );
