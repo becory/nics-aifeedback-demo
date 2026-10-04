@@ -280,7 +280,7 @@ export function FilterBar<P extends string, F extends string>({
                   setField((e.target.value || undefined) as F | undefined);
                   setKeyword("");
                 }}
-                className="border-0 border-r border-slate-200 bg-slate-50 px-2 py-1 text-sm outline-none"
+                className="cf-select-bare border-0 border-r border-slate-200 bg-slate-50 px-2 py-1 text-sm outline-none"
               >
                 {fieldPlaceholder && <option value="">{fieldPlaceholder}</option>}
                 {fieldGroups.map((g) => (
@@ -302,7 +302,7 @@ export function FilterBar<P extends string, F extends string>({
                     onChange={(e) => setKeyword(e.target.value)}
                     disabled={currentDef.loading}
                     aria-busy={currentDef.loading || undefined}
-                    className="max-w-64 border-0 px-2 py-1 text-sm outline-none"
+                    className="cf-select-bare max-w-64 border-0 px-2 py-1 text-sm outline-none"
                   >
                     <option value="">
                       {currentDef.loading ? "載入中…" : `請選擇${currentDef.label}`}

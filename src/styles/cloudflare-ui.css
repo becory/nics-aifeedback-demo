@@ -87,6 +87,21 @@
   padding-right: 36px;
 }
 
+/* Borderless select inside a composite control (e.g. the filter bar). Only background-image /
+   position here, so a utility background colour (bg-slate-50) still applies. */
+.cf-select-bare {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23595959' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.cf-select-bare:disabled {
+  color: #8c8c8c;
+  cursor: not-allowed;
+}
+
 .cf-select-native:disabled {
   background-color: #f5f5f5;
   color: #8c8c8c;
