@@ -283,7 +283,7 @@ export function UsersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
                           user.twoFactorEnabled
                             ? "bg-green-100 text-green-700"
                             : "bg-amber-100 text-amber-700"

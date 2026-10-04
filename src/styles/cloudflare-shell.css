@@ -176,6 +176,7 @@
 
 .cf-account-menu__badge {
   display: inline-block;
+  white-space: nowrap;
   margin-top: 8px;
   border-radius: 4px;
   background: #e8f0fe;

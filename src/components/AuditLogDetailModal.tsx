@@ -61,7 +61,7 @@ function AuditLogDetail({ entry, actorLabel }: { entry: AuditLogEntry; actorLabe
         <p>
           <span className="text-slate-500">等級：</span>
           <span
-            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${severityBadgeClass(entry.severity)}`}
+            className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${severityBadgeClass(entry.severity)}`}
           >
             {entry.severity}
           </span>

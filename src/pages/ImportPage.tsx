@@ -334,7 +334,7 @@ export function ImportPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(log.status)}`}
+                          className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(log.status)}`}
                         >
                           {STATUS_LABELS[log.status] ?? log.status}
                         </span>
