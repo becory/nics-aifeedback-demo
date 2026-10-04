@@ -274,8 +274,9 @@ function OrganizationKeysPanel({
                 {keys.map((key) => (
                   <tr key={key.id}>
                     <td className="px-3 py-2">
-                      <div className="flex items-start gap-2">
-                        <span className="min-w-0 break-all font-mono text-xs text-slate-600">
+                      {/* One line, cut off with … when the column is too narrow; full value on hover and via 複製. */}
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-0 truncate font-mono text-xs text-slate-600" title={key.id}>
                           {key.id}
                         </span>
                         <CopyButton value={key.id} />

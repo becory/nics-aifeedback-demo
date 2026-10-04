@@ -324,7 +324,10 @@ export function ImportPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                        {log.keyId ?? "—"}
+                        {/* One line, cut off with … past the width; full value on hover. */}
+                        <span className="block max-w-40 truncate" title={log.keyId ?? undefined}>
+                          {log.keyId ?? "—"}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {log.keyDescription ?? "—"}
