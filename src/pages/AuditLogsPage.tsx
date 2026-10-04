@@ -225,12 +225,12 @@ export function AuditLogsPage() {
           customKey="custom"
           fieldGroups={fieldGroups}
           extra={
-            <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-slate-700">
+            <label className="inline-flex h-8 cursor-pointer items-center gap-2 whitespace-nowrap text-sm leading-none text-slate-700">
               <input
                 type="checkbox"
                 checked={filters.hideAuditQueries}
                 onChange={(e) => applyFilters({ ...filters, hideAuditQueries: e.target.checked })}
-                className="h-4 w-4 rounded border-[#d9d9d9]"
+                className="m-0 h-4 w-4 shrink-0 rounded border-[#d9d9d9]"
               />
               隱藏「查詢稽核日誌」事件
             </label>
