@@ -87,7 +87,7 @@ function KeyStatusBadge({ keyItem }: { keyItem: OrganizationKey }) {
       : ["有效", "bg-green-100 text-green-700"];
   return (
     <span
-      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${className}`}
+      className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${className}`}
     >
       {label}
     </span>
@@ -274,8 +274,9 @@ function OrganizationKeysPanel({
                 {keys.map((key) => (
                   <tr key={key.id}>
                     <td className="px-3 py-2">
-                      <div className="flex items-start gap-2">
-                        <span className="min-w-0 break-all font-mono text-xs text-slate-600">
+                      {/* One line, cut off with … when the column is too narrow; full value on hover and via 複製. */}
+                      <div className="flex items-center gap-2">
+                        <span className="min-w-0 truncate font-mono text-xs text-slate-600" title={key.id}>
                           {key.id}
                         </span>
                         <CopyButton value={key.id} />

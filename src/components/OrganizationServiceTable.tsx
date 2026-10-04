@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { getApiErrorMessage } from "../api/api";
 import type { Organization, Service } from "../types";
 
@@ -111,7 +111,7 @@ export function OrganizationServiceTable({
   const hasOrgActions = !!orgActions;
 
   return (
-    <div className="cf-table-scroll">
+    <div className="cf-table-scroll cf-table-scroll--sticky-head">
       <table className="cf-table">
         <thead>
           <tr>
@@ -122,14 +122,15 @@ export function OrganizationServiceTable({
             {hasOrgActions && <th className="px-4 py-3 text-right font-medium text-slate-600">操作</th>}
           </tr>
         </thead>
-        <tbody>
-          {organizations.map((org) => {
+        {/* One tbody per organization: its row sticks (below the header) only while its own
+            services are on screen, then the next organization pushes it out. */}
+        {organizations.map((org) => {
             const open = expanded.has(org.id);
             const state = byOrg[org.id];
             const services = (state?.services ?? []).filter((s) => !serviceFilter || serviceFilter(s));
             return (
-              <Fragment key={org.id}>
-                <tr className="cursor-pointer" onClick={() => toggleOrg(org.id)}>
+              <tbody key={org.id} className="cf-org-section">
+                <tr className="cf-org-row cursor-pointer" onClick={() => toggleOrg(org.id)}>
                   <td className="px-2 py-3">
                     <button
                       type="button"
@@ -170,7 +171,9 @@ export function OrganizationServiceTable({
                       ) : services.length === 0 ? (
                         <p className="py-3 text-sm text-slate-400">{emptyServicesMessage}</p>
                       ) : (
-                        <div className="cf-table-scroll rounded border border-slate-200 bg-white">
+                        <div className="cf-nested-table rounded border border-slate-200 bg-white">
+                          {/* No overflow of its own: the outer table area scrolls (both ways), so
+                              this header can stick below the outer one. */}
                           <table className="cf-table">
                             <thead>
                               <tr>
@@ -200,10 +203,9 @@ export function OrganizationServiceTable({
                     </td>
                   </tr>
                 )}
-              </Fragment>
+              </tbody>
             );
           })}
-        </tbody>
       </table>
     </div>
   );

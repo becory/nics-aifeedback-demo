@@ -211,7 +211,8 @@ export function AuditLogsPage() {
   ];
 
   return (
-    <>
+    // Fills the viewport: the table card takes what's left and scrolls on its own (one scrollbar).
+    <div className="cf-page-fill">
       <PageHeader
         title="稽核日誌"
         description="查詢登入、權限與管理操作等稽核事件（保留期限約 30 天）"
@@ -225,12 +226,12 @@ export function AuditLogsPage() {
           customKey="custom"
           fieldGroups={fieldGroups}
           extra={
-            <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-slate-700">
+            <label className="inline-flex h-8 cursor-pointer items-center gap-2 whitespace-nowrap text-sm leading-none text-slate-700">
               <input
                 type="checkbox"
                 checked={filters.hideAuditQueries}
                 onChange={(e) => applyFilters({ ...filters, hideAuditQueries: e.target.checked })}
-                className="h-4 w-4 rounded border-[#d9d9d9]"
+                className="m-0 h-4 w-4 shrink-0 rounded border-[#d9d9d9]"
               />
               隱藏「查詢稽核日誌」事件
             </label>
@@ -245,9 +246,9 @@ export function AuditLogsPage() {
       ) : entries.length === 0 ? (
         !error && <EmptyState message="此條件下沒有稽核事件" />
       ) : (
-        <div className="cf-card">
+        <div className="cf-card cf-page-fill__table">
           <p className="px-4 pt-3 text-xs text-slate-500">已載入 {entries.length} 筆（最新在前）</p>
-          <div className="cf-table-scroll">
+          <div className="cf-table-scroll cf-table-scroll--sticky-head">
             <table className="cf-table">
               <thead>
                 <tr>
@@ -274,7 +275,7 @@ export function AuditLogsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${severityBadgeClass(entry.severity)}`}
+                        className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${severityBadgeClass(entry.severity)}`}
                       >
                         {entry.severity}
                       </span>
@@ -313,6 +314,6 @@ export function AuditLogsPage() {
         actorLabel={selected ? actorLabel(selected) : undefined}
         onClose={() => setSelected(null)}
       />
-    </>
+    </div>
   );
 }

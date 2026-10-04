@@ -36,7 +36,8 @@ export function ServiceListPage() {
   }, [user]);
 
   return (
-    <>
+    // Fills the viewport: the table card takes what's left and scrolls on its own (one scrollbar).
+    <div className="cf-page-fill">
       <PageHeader
         title="服務清單"
         description="檢視您所屬組織與其服務（僅供查閱），展開組織以查看服務"
@@ -49,7 +50,7 @@ export function ServiceListPage() {
       ) : organizations.length === 0 ? (
         <EmptyState message="您尚未被指派至任何組織，無法檢視服務" />
       ) : (
-        <div className="cf-card">
+        <div className="cf-card cf-page-fill__table">
           <OrganizationServiceTable
             organizations={organizations}
             loadServices={(orgId) =>
@@ -59,6 +60,6 @@ export function ServiceListPage() {
           />
         </div>
       )}
-    </>
+    </div>
   );
 }

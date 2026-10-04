@@ -179,7 +179,8 @@ export function ImportPage() {
   };
 
   return (
-    <>
+    // Fills the viewport: the table card takes what's left and scrolls on its own (one scrollbar).
+    <div className="cf-page-fill">
       <PageHeader
         title="資料匯入"
         description="上傳部署端匯出的加密回饋資料，匯入至所屬組織"
@@ -284,8 +285,8 @@ export function ImportPage() {
       ) : logs.length === 0 ? (
         <EmptyState message="尚無匯入紀錄" />
       ) : (
-        <div className="cf-card">
-          <div className="cf-table-scroll">
+        <div className="cf-card cf-page-fill__table">
+          <div className="cf-table-scroll cf-table-scroll--sticky-head">
             <table className="cf-table">
               <thead>
                 <tr>
@@ -324,7 +325,10 @@ export function ImportPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                        {log.keyId ?? "—"}
+                        {/* One line, cut off with … past the width; full value on hover. */}
+                        <span className="block max-w-40 truncate" title={log.keyId ?? undefined}>
+                          {log.keyId ?? "—"}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {log.keyDescription ?? "—"}
@@ -334,7 +338,7 @@ export function ImportPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(log.status)}`}
+                          className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(log.status)}`}
                         >
                           {STATUS_LABELS[log.status] ?? log.status}
                         </span>
@@ -451,6 +455,6 @@ export function ImportPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

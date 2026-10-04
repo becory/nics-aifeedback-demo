@@ -80,7 +80,7 @@ function renderCell(fb: Feedback, key: ColumnKey): ReactNode {
     case 'feedbackRating':
       return (
         <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+          className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
             ratingStyles[fb.feedbackRating] ?? ratingStyles.normal
           }`}
         >
