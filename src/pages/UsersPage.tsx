@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSubmitGuard } from "../lib/useSubmitGuard";
 import type { CreateUser, Organization, User } from "../types";
 import { Modal } from "../components/Modal";
 import {
@@ -112,6 +113,7 @@ export function UsersPage() {
     setPasswordModalOpen(true);
   };
 
+  const [saving, guardSave] = useSubmitGuard();
   const handleSave = async () => {
     if (!name.trim()) {
       setError("請輸入中文名稱");
@@ -251,87 +253,89 @@ export function UsersPage() {
         <EmptyState message="尚無使用者資料" />
       ) : (
         <div className="cf-card">
-          <table className="cf-table">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 font-medium text-slate-600">
-                  中文名稱
-                </th>
-                <th className="px-4 py-3 font-medium text-slate-600">信箱</th>
-                <th className="px-4 py-3 font-medium text-slate-600">組織</th>
-                <th className="px-4 py-3 font-medium text-slate-600">
-                  二階段驗證
-                </th>
-                <th className="px-4 py-3 font-medium text-slate-600">管理員</th>
-                <th className="px-4 py-3 font-medium text-slate-600 text-right">
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((user) => (
-                <tr key={user.id}>
-                  <td className="px-4 py-3 font-medium text-slate-900">
-                    {user.name}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{user.email}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {getOrgNames(user.organizationIds)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                        user.twoFactorEnabled
-                          ? "bg-green-100 text-green-700"
-                          : "bg-amber-100 text-amber-700"
-                      }`}
-                    >
-                      {user.twoFactorEnabled ? "已綁定" : "待綁定"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {user.isSystemAdmin ? (
-                      <span className="cf-badge cf-badge--blue">是</span>
-                    ) : (
-                      <span className="text-slate-400">否</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(user)}
-                      className="cf-link mr-3"
-                    >
-                      編輯
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openChangePassword(user)}
-                      className="cf-link mr-3"
-                    >
-                      修改密碼
-                    </button>
-                    {user.twoFactorEnabled && (
+          <div className="cf-table-scroll">
+            <table className="cf-table">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 font-medium text-slate-600">
+                    中文名稱
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-600">信箱</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">組織</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">
+                    二階段驗證
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-600">管理員</th>
+                  <th className="px-4 py-3 font-medium text-slate-600 text-right">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((user) => (
+                  <tr key={user.id}>
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {user.name}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{user.email}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {getOrgNames(user.organizationIds)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                          user.twoFactorEnabled
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {user.twoFactorEnabled ? "已綁定" : "待綁定"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {user.isSystemAdmin ? (
+                        <span className="cf-badge cf-badge--blue">是</span>
+                      ) : (
+                        <span className="text-slate-400">否</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button
                         type="button"
-                        onClick={() => handleReset2FA(user)}
-                        className="mr-2 text-amber-600 hover:text-amber-800"
+                        onClick={() => openEdit(user)}
+                        className="cf-link mr-3"
                       >
-                        重設二階段驗證
+                        編輯
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(user)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      刪除
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      <button
+                        type="button"
+                        onClick={() => openChangePassword(user)}
+                        className="cf-link mr-3"
+                      >
+                        修改密碼
+                      </button>
+                      {user.twoFactorEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => handleReset2FA(user)}
+                          className="mr-2 text-amber-600 hover:text-amber-800"
+                        >
+                          重設二階段驗證
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(user)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        刪除
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -423,7 +427,9 @@ export function UsersPage() {
             <Button variant="secondary" onClick={() => setModalOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleSave}>儲存</Button>
+            <Button onClick={() => guardSave(handleSave)} disabled={saving}>
+              {saving ? "儲存中…" : "儲存"}
+            </Button>
           </div>
         </div>
       </Modal>

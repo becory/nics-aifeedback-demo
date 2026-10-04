@@ -2,14 +2,24 @@ import axios from "axios";
 
 export const instance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  timeout: 5000,
+  // Generous enough for a Cloud Run cold start (and for /auth/refresh: the server rotates the
+  // refresh token, so giving up on a slow response would drop the new cookie while the old one
+  // is already revoked), short enough that a hung request still surfaces an error and 重試.
+  timeout: 30000,
   withCredentials: true
 });
 
 let accessToken: string | null = null;
+// Local clock time (ms) the access token expires, from the API's expiresIn — counted from when
+// we received it rather than from the JWT's exp, so a wrong client clock can't skew it.
+let accessTokenExpiresAt: number | null = null;
 
-export function setAccessToken(token: string | null) {
+/** expiresInSeconds comes with every token response; without it there's no early refresh. */
+export function setAccessToken(token: string | null, expiresInSeconds?: number) {
+  // The same token re-synced from React state keeps the expiry recorded when it arrived.
+  if (token === accessToken && expiresInSeconds === undefined) return;
   accessToken = token;
+  accessTokenExpiresAt = token && expiresInSeconds ? Date.now() + expiresInSeconds * 1000 : null;
 }
 
 type RefreshHandler = () => Promise<void>;
@@ -49,16 +59,51 @@ export function getApiErrorMessage(error: unknown): string | undefined {
   return undefined;
 }
 
-const NO_REFRESH_RETRY_PATHS = ["/auth/login", "/auth/2fa", "/auth/refresh"];
+// Auth calls never trigger a refresh. /auth/me is only called right after a token was issued
+// (including inside the refresh itself, where waiting on the refresh would deadlock).
+const NO_REFRESH_RETRY_PATHS = ["/auth/login", "/auth/2fa", "/auth/refresh", "/auth/me"];
 
-instance.interceptors.request.use((config) => {
+const isAuthPath = (url?: string) => !!url?.startsWith("/auth/");
+
+// Refresh tokens rotate (each one is single-use), so every refresh — early or after a 401 —
+// goes through this one shared promise.
+let refreshPromise: Promise<void> | null = null;
+
+function sharedRefresh(handler: RefreshHandler): Promise<void> {
+  refreshPromise ??= handler().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
+// Refresh this long before expiry, so a request never goes out with a token about to lapse.
+// Only requests trigger it: an idle tab doesn't renew its session on its own.
+const EARLY_REFRESH_MS = 60_000;
+
+const tokenExpiringSoon = () =>
+  !!accessToken && accessTokenExpiresAt !== null && accessTokenExpiresAt - Date.now() < EARLY_REFRESH_MS;
+
+instance.interceptors.request.use(async (config) => {
+  // Auth calls skip this: the refresh itself calls /auth/me, which would wait on its own refresh.
+  if (!isAuthPath(config.url)) {
+    const handler = refreshHandler;
+    if (!refreshPromise && handler && tokenExpiringSoon()) sharedRefresh(handler);
+    // Also covers a refresh started by another request's 401: without waiting, this request
+    // would carry the old token and come back 401 after the refresh finished.
+    if (refreshPromise) {
+      try {
+        await refreshPromise;
+      } catch {
+        // The refresh failed. The request goes out with whatever token there is; a 401 is
+        // handled below (and logs out only if refreshing fails again).
+      }
+    }
+  }
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
   return config;
 });
-
-let refreshPromise: Promise<void> | null = null;
 
 instance.interceptors.response.use(
   (response) => response,
@@ -80,15 +125,59 @@ instance.interceptors.response.use(
     }
 
     originalRequest._retry = true;
+
+    // The token was already refreshed after this request went out: just resend it, rather than
+    // spending another (rotating) refresh token.
+    const sentWith = originalRequest.headers?.Authorization;
+    if (accessToken && sentWith && sentWith !== `Bearer ${accessToken}`) {
+      return instance(originalRequest);
+    }
+
     try {
-      refreshPromise ??= handler().finally(() => {
-        refreshPromise = null;
-      });
-      await refreshPromise;
+      await sharedRefresh(handler);
       return instance(originalRequest);
     } catch (refreshError) {
       onUnauthorized?.();
       throw refreshError;
     }
+  },
+);
+
+// ---- In-flight request count, for the global top progress bar ----
+// Registered after the auth interceptors on purpose: axios runs request interceptors in reverse
+// registration order and response interceptors in order, so the count starts before a request
+// waits on a token refresh and ends only after a 401 retry has settled.
+
+let pendingRequests = 0;
+const pendingListeners = new Set<() => void>();
+
+function changePending(delta: number) {
+  pendingRequests += delta;
+  pendingListeners.forEach((listener) => listener());
+}
+
+export const getPendingRequestCount = () => pendingRequests;
+
+export function subscribePendingRequests(listener: () => void) {
+  pendingListeners.add(listener);
+  return () => {
+    pendingListeners.delete(listener);
+  };
+}
+
+instance.interceptors.request.use((config) => {
+  changePending(1);
+  return config;
+});
+
+// A request interceptor that rejects still lands in this onRejected, so every +1 gets its -1.
+instance.interceptors.response.use(
+  (response) => {
+    changePending(-1);
+    return response;
+  },
+  (error) => {
+    changePending(-1);
+    throw error;
   },
 );

@@ -3,6 +3,8 @@ export interface Organization {
     name: string
     code: string
     isActive: boolean
+    /** Same count as GET /services?organizationId=… for the same caller (computed on read). */
+    serviceCount?: number
 }
 
 export interface CreateOrganizationRequest {
@@ -14,11 +16,6 @@ export type UpdateOrganizationRequest = CreateOrganizationRequest
 
 export interface Service {
   id: string
-  agentId: string
-  agentName: string
-  agentCode: string
-  /** The owning Agent's ApiUrl; null until an admin sets it. */
-  agentApiUrl?: string | null
   organizationId: string
   organizationName: string
   name: string
@@ -28,7 +25,8 @@ export interface Service {
 }
 
 export interface CreateServiceRequest {
-  agentId: string
+  /** Can change on update: the service (and all its feedback) moves to the new organization. */
+  organizationId: string
   name: string
   code: string
   host: string
@@ -49,65 +47,32 @@ export interface CreateUser extends User {
   initialPassword: string
 }
 
-export interface AgentKeyGeneration {
+/** An organization's offline-import key. Never carries the full key except right after creation. */
+export interface OrganizationKey {
+  /** uuid; the key_id the Agent CLI writes into export envelopes. */
   id: string
+  organizationId: string
+  description?: string | null
+  keyPreview: string
   createdAt: string
   expiresAt: string
-  aesKeyPreview: string
   isRevoked: boolean
   revokedAt?: string | null
 }
 
-/** Local = on-prem Agent with AES key material; Cloud = cloud-hosted backend with no keys. */
-export type AgentDeploymentType = 'Local' | 'Cloud'
+/** Only the create response carries the full aesKey. */
+export interface CreatedOrganizationKey extends OrganizationKey {
+  aesKey: string
+}
 
-export interface Agent {
-  id: string
-  organizationId: string
-  code: string
-  name: string
+export interface CreateOrganizationKeyRequest {
+  description?: string
+  expiresAt: string
+}
+
+export interface UpdateOrganizationKeyRequest {
+  /** Null/blank clears it. */
   description?: string | null
-  deploymentType: AgentDeploymentType
-  /** Public base URL the frontend SDK connects to. Null only on Agents created before it existed. */
-  apiUrl?: string | null
-  aesKey?: string | null
-  /** Null for a Cloud Agent (no key generation). */
-  aesKeyPreview?: string | null
-  createdAt: string
-  isActive: boolean
-  activeKeysCount: number
-  keys: AgentKeyGeneration[]
-}
-
-export interface CreateAgentRequest {
-  organizationId: string
-  code: string
-  name: string
-  description?: string
-  deploymentType: AgentDeploymentType
-  /** Required for Local (first key generation's expiry); ignored for Cloud. */
-  expiresAt?: string
-  apiUrl: string
-}
-
-export interface UpdateAgentRequest {
-  name: string
-  description?: string
-  apiUrl: string
-}
-
-/**
- * System-wide SDK settings (one per deployment, not per Agent). Every Cloud Agent's services load
- * the SDK from CloudSdkScriptUrl; Local Agents serve their own copy at {apiUrl}/sdk/....
- */
-export interface SdkSettings {
-  cloudSdkScriptUrl: string
-  /** Null while an admin has never saved it (cloudSdkScriptUrl is then the built-in default). */
-  updatedAt?: string | null
-}
-
-export interface UpdateSdkSettingsRequest {
-  cloudSdkScriptUrl: string
 }
 
 export interface ScoreConfig {
@@ -193,7 +158,7 @@ export interface AuditLogEntry {
   severity: AuditSeverity | string
   eventType?: string | null
   description?: string | null
-  /** Always the acting user; whoever was acted on is in properties (targetUserId, agentId, ...). */
+  /** Always the acting user; whoever was acted on is in properties (targetUserId, keyId, ...). */
   userId?: string | null
   userEmail?: string | null
   clientIp?: string | null
@@ -206,11 +171,9 @@ export type ImportLogStatus = 'Succeeded' | 'PartiallySucceeded' | 'Failed'
 export interface ImportLog {
   id: string
   organizationId: string
-  agentId?: string | null
-  agentCode?: string | null
-  agentName?: string | null
-  keyGenerationId?: string | null
-  keyPreview?: string | null
+  keyId?: string | null
+  /** Resolved at read time, so it follows later edits of the key's description. */
+  keyDescription?: string | null
   fileMd5: string
   status: ImportLogStatus
   requestedByUserId: string

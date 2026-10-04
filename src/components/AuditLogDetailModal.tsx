@@ -107,23 +107,25 @@ function AuditLogDetail({ entry, actorLabel }: { entry: AuditLogEntry; actorLabe
         {properties.length === 0 ? (
           <p className="text-sm text-slate-400">無</p>
         ) : (
-          <table className="w-full text-sm">
-            <tbody>
-              {properties.map(([key, value]) => (
-                <tr key={key} className="border-t border-slate-100 align-top">
-                  <td className="w-44 py-1.5 pr-4 text-slate-500">
-                    {AUDIT_PROPERTY_LABELS[key] ?? key}
-                    {AUDIT_PROPERTY_LABELS[key] && (
-                      <div className="font-mono text-[11px] text-slate-400">{key}</div>
-                    )}
-                  </td>
-                  <td className="whitespace-pre-wrap break-all py-1.5 font-mono text-xs text-slate-700">
-                    {formatAuditValue(value)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="cf-table-scroll">
+            <table className="w-full text-sm">
+              <tbody>
+                {properties.map(([key, value]) => (
+                  <tr key={key} className="border-t border-slate-100 align-top">
+                    <td className="w-44 py-1.5 pr-4 text-slate-500">
+                      {AUDIT_PROPERTY_LABELS[key] ?? key}
+                      {AUDIT_PROPERTY_LABELS[key] && (
+                        <div className="font-mono text-[11px] text-slate-400">{key}</div>
+                      )}
+                    </td>
+                    <td className="whitespace-pre-wrap break-all py-1.5 font-mono text-xs text-slate-700">
+                      {formatAuditValue(value)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

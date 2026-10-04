@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useRef } from 'react'
 
 interface PageHeaderProps {
   title: string
@@ -78,26 +78,42 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label: string
   error?: string
   options: { value: string; label: string }[]
+  /** Options are still being fetched: disabled, showing 「載入中…」 and a spinner. */
+  loading?: boolean
 }
 
-export function Select({ label, error, options, id, className = '', ...props }: SelectProps) {
+/** Small inline spinner for a field whose options are still loading. */
+export function FieldSpinner({ className = '' }: { className?: string }) {
+  return <span className={`cf-spinner cf-spinner--sm ${className}`} role="status" aria-label="載入中" />
+}
+
+export function Select({ label, error, options, loading, id, className = '', disabled, ...props }: SelectProps) {
   const selectId = id ?? label
   return (
     <div className="cf-field">
       <label htmlFor={selectId} className="cf-label">
         {label}
       </label>
-      <select
-        id={selectId}
-        className={`cf-select-native ${error ? 'cf-input--error' : ''} ${className}`}
-        {...props}
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          id={selectId}
+          className={`cf-select-native ${error ? 'cf-input--error' : ''} ${className}`}
+          disabled={disabled || loading}
+          aria-busy={loading || undefined}
+          {...props}
+        >
+          {loading ? (
+            <option value={props.value as string | undefined}>載入中…</option>
+          ) : (
+            options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))
+          )}
+        </select>
+        {loading && <FieldSpinner className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2" />}
+      </div>
       {error && <p className="mt-1 text-xs text-[#b42318]">{error}</p>}
     </div>
   )
@@ -140,5 +156,76 @@ export function CheckboxGroup({ label, options, values, onChange }: CheckboxGrou
         )}
       </div>
     </div>
+  )
+}
+
+interface DateTimeInputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> {
+  /** datetime-local string ("" = empty). */
+  value: string
+  onChange: (value: string) => void
+  /** Classes for the <input> itself; `className` styles the wrapper. */
+  inputClassName?: string
+}
+
+/**
+ * datetime-local input with a clear (×) button once it has a value. Pair two of them as a range
+ * by passing the other end as `min` / `max`.
+ *
+ * min/max are enforced here, not just handed to the browser: native pickers only partly honour
+ * them (Chrome greys out days but not times; Safari/Firefox mostly ignore them) and typed values
+ * are never blocked. A value outside the bounds is clamped to the nearest bound. datetime-local
+ * values are fixed-width "YYYY-MM-DDTHH:mm" strings and only reach onChange once complete, so
+ * plain string comparison orders them correctly.
+ */
+export function DateTimeInput({
+  value,
+  onChange,
+  className = '',
+  inputClassName = '',
+  disabled,
+  min,
+  max,
+  ...props
+}: DateTimeInputProps) {
+  const clamp = (next: string) => {
+    if (!next) return next
+    const lower = min === undefined ? '' : String(min)
+    const upper = max === undefined ? '' : String(max)
+    if (lower && next < lower) return lower
+    if (upper && next > upper) return upper
+    return next
+  }
+  const inputRef = useRef<HTMLInputElement>(null)
+  return (
+    <span className={`inline-flex items-center ${className}`}>
+      <input
+        ref={inputRef}
+        type="datetime-local"
+        value={value}
+        onChange={(e) => onChange(clamp(e.target.value))}
+        min={min}
+        max={max}
+        disabled={disabled}
+        className={`min-w-0 flex-1 ${inputClassName}`}
+        {...props}
+      />
+      {value && !disabled && (
+        <button
+          type="button"
+          onClick={() => {
+            onChange('')
+            // The button unmounts once the value is empty; hand focus back to the input so it
+            // isn't dropped (a parent's focus-leaves-group logic keeps working, and the user
+            // can type a new value right away).
+            inputRef.current?.focus()
+          }}
+          className="ml-1 flex h-6 w-6 shrink-0 items-center justify-center rounded border border-[#d9d9d9] bg-white text-sm leading-none text-[#595959] hover:border-[#bfbfbf] hover:bg-[#f5f5f5] hover:text-[#1d1d1d]"
+          aria-label={`清除${props['aria-label'] ?? ''}`}
+        >
+          ×
+        </button>
+      )}
+    </span>
   )
 }

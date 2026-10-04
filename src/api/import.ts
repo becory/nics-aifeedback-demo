@@ -3,9 +3,8 @@ import { instance } from './api';
 
 // The request body is whatever JSON the Agent CLI's export file contains (snake_case field
 // names) — the frontend passes it straight through without re-shaping it.
-// Decrypt + CSV parse + BigQuery dedup/insert can easily exceed the global 5s default (see
-// api.ts), so this call gets its own generous timeout instead of raising the default for
-// every request.
+// Decrypt + CSV parse + BigQuery dedup/insert can exceed the global 30s default (see api.ts),
+// so this call gets its own longer timeout.
 export const importOrganizationData = (organizationId: string, envelope: unknown) =>
   instance.post<ImportLogDetail>(`/organizations/${organizationId}/import`, envelope, {
     timeout: 120000,

@@ -1,461 +1,441 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Feedback, FeedbackRating, Organization, ScoreConfig, Service } from "../types";
 import {
   getFeedbackOverview,
+  getFeedbackServiceRatings,
   getFeedbackTopColumns,
   getFeedbacks,
   getOrganizations,
   getScoreConfigs,
   getServices,
-  type FeedbackGroupBy,
   type FeedbackOverview,
-  type FeedbackOverviewInterval,
+  type FeedbackServiceRating,
+  type FeedbackTopColumns,
 } from "../api";
 import { getApiErrorMessage } from "../api/api";
 import { ActivityLogTable } from "../components/ActivityLogTable";
 import {
-  FilterChip,
-  TopStatsPanel,
-  TrafficChartSection,
-  type TopStatsItem,
+  ChartCard,
+  DonutChart,
+  HorizontalBarChart,
+  HorizontalStackedBarChart,
+  SummaryStat,
 } from "../components/feedbackCharts";
-import type { DimensionFilter, StatsFilterField } from "../lib/feedbackStats";
-import { EmptyState, Input, LoadingState, PageHeader, Select } from "../components/ui";
+import { FeedbackFilterBar } from "../components/feedbackOverview/FeedbackFilterBar";
+import { EmptyState, LoadingState, PageHeader } from "../components/ui";
+import {
+  buildFeedbackFilterParams,
+  filtersFromSearchParams,
+  filtersToSearchParams,
+  TIME_PRESETS,
+  previousTimeRange,
+  resolveTimeRange,
+  type AppliedFeedbackFilters,
+  type TimeRange,
+} from "../lib/feedbackFilters";
+import { CHART_COLORS, truncateLabel } from "../lib/feedbackStats";
 
 const RATING_KEYS: FeedbackRating[] = ["good", "normal", "bad"];
-const FETCH_PAGE_SIZE = 1000;
+const ACTIVITY_PAGE_SIZE = 25;
+const SERVICE_CHART_LIMIT = 10;
 
-const RATING_OPTIONS = [
-  { value: "", label: "全部評價" },
-  { value: "good", label: "good" },
-  { value: "normal", label: "normal" },
-  { value: "bad", label: "bad" },
-];
-
-interface Filters {
-  organizationId: string;
-  serviceId: string;
-  feedbackRating: string;
-  device: string;
-  ipCountry: string;
-  sessionId: string;
-  from: string;
-  to: string;
+interface PageData {
+  current: FeedbackOverview;
+  previous: FeedbackOverview | null;
+  /** The window `previous` was queried for (null when there is none). */
+  previousRange: TimeRange | null;
+  ratings: FeedbackTopColumns;
+  devices: FeedbackTopColumns;
+  serviceRatings: FeedbackServiceRating[];
 }
 
-const EMPTY_FILTERS: Filters = {
-  organizationId: "",
-  serviceId: "",
-  feedbackRating: "",
-  device: "",
-  ipCountry: "",
-  sessionId: "",
-  from: "",
-  to: "",
-};
-
-interface StatsDimension {
-  field: StatsFilterField;
-  groupBy: FeedbackGroupBy;
-  title: string;
-  // filter-bar field that also feeds an "include" value into this dimension, if any
-  formKey?: keyof Filters;
+function formatScore(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-const STATS_DIMENSIONS: StatsDimension[] = [
-  { field: "serviceId", groupBy: "service", title: "服務", formKey: "serviceId" },
-  { field: "organization", groupBy: "org", title: "組織", formKey: "organizationId" },
-  { field: "feedbackRating", groupBy: "rate", title: "評價", formKey: "feedbackRating" },
-  { field: "ipCountry", groupBy: "ip_country", title: "來源國家/地區", formKey: "ipCountry" },
-  { field: "ipAsn", groupBy: "ip_asn", title: "主要來源 ASN" },
-  { field: "ipAddress", groupBy: "ip", title: "客戶端 IP 位址" },
-  { field: "originHost", groupBy: "origin_host", title: "主機" },
-  { field: "userAgent", groupBy: "user_agent", title: "使用者代理程式" },
-  { field: "device", groupBy: "device", title: "裝置", formKey: "device" },
-];
-
-function formatDayLabel(date: string): string {
-  const [y, m, d] = date.split("-");
-  return `${y}/${parseInt(m, 10)}/${parseInt(d, 10)}`;
+/** datetime-local string -> "2026/08/30 14:05". */
+function formatRangePoint(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function buildFilterValue(
-  formValue: string,
-  statsField: StatsFilterField | undefined,
-  dimensionFilters: DimensionFilter[],
-): string | string[] | undefined {
-  const matching = statsField
-    ? dimensionFilters.filter((f) => f.field === statsField)
-    : [];
-  const includes = matching.filter((f) => f.mode === "include").map((f) => f.value);
-  const excludes = matching
-    .filter((f) => f.mode === "exclude")
-    .map((f) => `-${f.value}`);
-  const values = [...(formValue ? [formValue] : []), ...includes, ...excludes];
-  if (values.length === 0) return undefined;
-  return values.length === 1 ? values[0] : values;
+function formatRange(range: TimeRange): string {
+  return `${formatRangePoint(range.from)} – ${range.to ? formatRangePoint(range.to) : "至今"}`;
 }
 
-const FILTER_LABELS: Record<keyof Filters, string> = {
-  organizationId: "組織",
-  serviceId: "服務",
-  feedbackRating: "評價",
-  device: "裝置",
-  ipCountry: "來源國家/地區",
-  sessionId: "Session ID",
-  from: "起始時間",
-  to: "結束時間",
-};
+function ScoreDelta({
+  current,
+  previous,
+  previousRange,
+}: {
+  current: number | null;
+  previous: number | null;
+  previousRange: TimeRange | null;
+}) {
+  if (current === null) return null;
+  const title = previousRange ? `上期：${formatRange(previousRange)}` : undefined;
+  if (previous === null) return <span title={title}>上期無資料</span>;
+  const delta = Math.round((current - previous) * 10) / 10;
+  if (delta === 0) return <span title={title}>與上期持平</span>;
+  return delta > 0 ? (
+    <span className="text-green-700" title={title}>
+      較上期 ↑{delta.toFixed(1)}
+    </span>
+  ) : (
+    <span className="text-red-600" title={title}>
+      較上期 ↓{Math.abs(delta).toFixed(1)}
+    </span>
+  );
+}
+
+function MoreServicesNote({ total }: { total: number }) {
+  if (total <= SERVICE_CHART_LIMIT) return null;
+  return (
+    <p className="mt-3 text-center text-xs text-slate-400">
+      另有 {total - SERVICE_CHART_LIMIT} 個服務
+    </p>
+  );
+}
 
 export function FeedbackOverviewPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [ratingConfigs, setRatingConfigs] = useState<
-    Partial<Record<FeedbackRating, ScoreConfig>>
-  >({});
+  const [scoreConfigs, setScoreConfigs] = useState<ScoreConfig[]>([]);
+  const [baseReady, setBaseReady] = useState(false);
 
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [appliedFilters, setAppliedFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [dimensionFilters, setDimensionFilters] = useState<DimensionFilter[]>([]);
-  const [interval, setInterval] = useState<FeedbackOverviewInterval>("day");
+  // Filters and the activity log page live in the query string, so a copied URL reopens the
+  // same view. Read once on mount; every change below writes it back.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [initialState] = useState(() => filtersFromSearchParams(searchParams));
+  const [applied, setApplied] = useState<AppliedFeedbackFilters>(initialState.filters);
+  // Resolved once per search, so a relative preset ("近 30 天") and its previous period stay fixed
+  // while the page shows that result.
+  const [appliedRange, setAppliedRange] = useState<TimeRange>(() =>
+    resolveTimeRange(initialState.filters.time),
+  );
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-  const [overview, setOverview] = useState<FeedbackOverview | null>(null);
-  const [topColumns, setTopColumns] = useState<
-    Partial<Record<StatsFilterField, TopStatsItem[]>>
-  >({});
+  const [data, setData] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
+  const [activityPage, setActivityPage] = useState(initialState.page);
+  const [activityRows, setActivityRows] = useState<Feedback[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState("");
+
   useEffect(() => {
-    getOrganizations({ currentUser: true }).then((res) =>
-      setOrganizations(res.data.data),
-    );
-    getServices({ currentUser: true }).then((res) => setServices(res.data.data));
-    getScoreConfigs().then((res) => {
-      const sorted = [...res.data.data].sort(
-        (a, b) => b.scoreValue - a.scoreValue,
-      );
-      const next: Partial<Record<FeedbackRating, ScoreConfig>> = {};
-      RATING_KEYS.forEach((key, index) => {
-        if (sorted[index]) next[key] = sorted[index];
-      });
-      setRatingConfigs(next);
-    });
+    Promise.all([
+      getOrganizations({ currentUser: true }),
+      getServices({ currentUser: true }),
+      getScoreConfigs(),
+    ])
+      .then(([orgs, svcs, scores]) => {
+        setOrganizations(orgs.data.data);
+        setServices(svcs.data.data);
+        setScoreConfigs(scores.data.data);
+      })
+      .catch((error) => {
+        const detail = getApiErrorMessage(error);
+        setLoadError(`載入服務資料時發生錯誤${detail ? `：${detail}` : ""}`);
+        setLoading(false);
+      })
+      .finally(() => setBaseReady(true));
   }, []);
 
-  const refresh = async () => {
-    setLoading(true);
-    try {
-      const filterParams = {
-        organizationId: buildFilterValue(
-          appliedFilters.organizationId,
-          "organization",
-          dimensionFilters,
-        ),
-        serviceId: buildFilterValue(
-          appliedFilters.serviceId,
-          "serviceId",
-          dimensionFilters,
-        ),
-        feedbackRating: buildFilterValue(
-          appliedFilters.feedbackRating,
-          "feedbackRating",
-          dimensionFilters,
-        ),
-        device: buildFilterValue(appliedFilters.device, "device", dimensionFilters),
-        ipCountry: buildFilterValue(
-          appliedFilters.ipCountry,
-          "ipCountry",
-          dimensionFilters,
-        ),
-        ipAsn: buildFilterValue("", "ipAsn", dimensionFilters),
-        ipAddress: buildFilterValue("", "ipAddress", dimensionFilters),
-        originHost: buildFilterValue("", "originHost", dimensionFilters),
-        userAgent: buildFilterValue("", "userAgent", dimensionFilters),
-        sessionId: appliedFilters.sessionId || undefined,
-        from: appliedFilters.from || undefined,
-        to: appliedFilters.to || undefined,
-      };
+  // null = the service conditions match no service: nothing to query.
+  const filterParams = useMemo(
+    () => buildFeedbackFilterParams(applied.conditions, services, appliedRange),
+    [applied.conditions, services, appliedRange],
+  );
 
-      const [feedbacksRes, overviewRes, ...topColumnsRes] = await Promise.all([
-        getFeedbacks({ ...filterParams, page: 1, pageSize: FETCH_PAGE_SIZE }),
-        getFeedbackOverview({ ...filterParams, interval }),
-        ...STATS_DIMENSIONS.map((d) =>
-          getFeedbackTopColumns({ ...filterParams, groupBy: d.groupBy }),
-        ),
-      ]);
+  useEffect(() => {
+    if (!baseReady || !filterParams) return;
+    let cancelled = false;
 
-      setFeedbacks(feedbacksRes.data.data);
-      setOverview(overviewRes.data);
+    const previousRange = previousTimeRange(appliedRange);
 
-      const nextTopColumns: Partial<Record<StatsFilterField, TopStatsItem[]>> = {};
-      STATS_DIMENSIONS.forEach((d, i) => {
-        nextTopColumns[d.field] = topColumnsRes[i].data.items.map((item) => ({
-          label: item.label,
-          value: item.value,
-          count: item.count,
-        }));
+    Promise.all([
+      getFeedbackOverview(filterParams),
+      previousRange
+        ? getFeedbackOverview({ ...filterParams, from: previousRange.from, to: previousRange.to })
+        : Promise.resolve(null),
+      getFeedbackTopColumns({ ...filterParams, groupBy: "rate" }),
+      getFeedbackTopColumns({ ...filterParams, groupBy: "device" }),
+      getFeedbackServiceRatings(filterParams),
+    ])
+      .then(([current, previous, ratings, devices, serviceRatings]) => {
+        if (cancelled) return;
+        setData({
+          current: current.data,
+          previous: previous?.data ?? null,
+          previousRange,
+          ratings: ratings.data,
+          devices: devices.data,
+          serviceRatings: serviceRatings.data.data,
+        });
+        setLoadError("");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        const detail = getApiErrorMessage(error);
+        setData(null);
+        setLoadError(`載入回饋資料時發生錯誤${detail ? `：${detail}` : ""}`);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-      setTopColumns(nextTopColumns);
-      setLoadError("");
-    } catch (error) {
-      const detail = getApiErrorMessage(error);
-      setLoadError(`載入回饋資料時發生錯誤${detail ? `：${detail}` : ""}`);
-    } finally {
-      setLoading(false);
+
+    return () => {
+      cancelled = true;
+    };
+    // appliedRange is read for the previous period, but filterParams already changes with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseReady, filterParams, reloadKey]);
+
+  // Activity log: one backend page at a time (page/pageSize), total from overview.totalCount.
+  useEffect(() => {
+    if (!baseReady || !filterParams) return;
+    let cancelled = false;
+
+    getFeedbacks({ ...filterParams, page: activityPage, pageSize: ACTIVITY_PAGE_SIZE })
+      .then((response) => {
+        if (cancelled) return;
+        setActivityRows(response.data.data);
+        setActivityError("");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        const detail = getApiErrorMessage(error);
+        setActivityRows([]);
+        setActivityError(`載入活動記錄時發生錯誤${detail ? `：${detail}` : ""}`);
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [baseReady, filterParams, activityPage, reloadKey]);
+
+  const apply = (next: AppliedFeedbackFilters) => {
+    const range = resolveTimeRange(next.time);
+    setApplied(next);
+    setAppliedRange(range);
+    setActivityPage(1);
+    setSearchParams(filtersToSearchParams(next, 1), { replace: true });
+    setReloadKey((k) => k + 1);
+    if (buildFeedbackFilterParams(next.conditions, services, range)) {
+      setLoading(true);
+      setActivityLoading(true);
     }
   };
 
-  useEffect(() => {
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedFilters, dimensionFilters, interval]);
-
-  const ratingLabels = useMemo<Record<FeedbackRating, string>>(
-    () => ({
-      good: ratingConfigs.good?.name ?? "good",
-      normal: ratingConfigs.normal?.name ?? "normal",
-      bad: ratingConfigs.bad?.name ?? "bad",
-    }),
-    [ratingConfigs],
-  );
-
-  const dailyTraffic = useMemo(
-    () =>
-      (overview?.counts ?? []).map((c) => ({
-        date: c.date,
-        label: formatDayLabel(c.date),
-        count: c.count,
-      })),
-    [overview],
-  );
-
-  const organizationOptions = [
-    { value: "", label: "全部組織" },
-    ...organizations.map((o) => ({ value: o.id, label: o.name })),
-  ];
-  const serviceOptions = [
-    { value: "", label: "全部服務" },
-    ...services.map((s) => ({ value: s.code, label: s.name })),
-  ];
-
-  const applyFilters = () => {
-    setAppliedFilters(filters);
+  const retry = () => {
+    setLoading(true);
+    setActivityLoading(true);
+    setReloadKey((k) => k + 1);
   };
 
-  const clearFilters = () => {
-    setFilters(EMPTY_FILTERS);
-    setAppliedFilters(EMPTY_FILTERS);
-    setDimensionFilters([]);
+  const changeActivityPage = (nextPage: number) => {
+    setActivityLoading(true);
+    setActivityPage(nextPage);
+    setSearchParams(filtersToSearchParams(applied, nextPage), { replace: true });
   };
 
-  const removeFilter = (key: keyof Filters) => {
-    setFilters((f) => ({ ...f, [key]: "" }));
-    setAppliedFilters((f) => ({ ...f, [key]: "" }));
-  };
-
-  const addDimensionFilter = (
-    field: StatsFilterField,
-    value: string,
-    label: string,
-    mode: "include" | "exclude",
-  ) => {
-    setDimensionFilters((prev) => {
-      const withoutDup = prev.filter(
-        (f) => !(f.field === field && f.value === value && f.mode === mode),
-      );
-      return [
-        ...withoutDup,
-        { id: `${field}-${mode}-${value}-${Date.now()}`, field, value, mode, label },
-      ];
+  const ratingLabels = useMemo<Record<FeedbackRating, string>>(() => {
+    // Score configs are good/normal/bad by descending score (same pairing as before the redesign).
+    const sorted = [...scoreConfigs].sort((a, b) => b.scoreValue - a.scoreValue);
+    const labels = { good: "good", normal: "normal", bad: "bad" } as Record<FeedbackRating, string>;
+    RATING_KEYS.forEach((key, i) => {
+      if (sorted[i]) labels[key] = sorted[i].name;
     });
+    return labels;
+  }, [scoreConfigs]);
+
+  const ratingCounts = useMemo(() => {
+    const counts: Record<FeedbackRating, number> = { good: 0, normal: 0, bad: 0 };
+    for (const item of data?.ratings.items ?? []) {
+      if (item.value in counts) counts[item.value as FeedbackRating] = item.count;
+    }
+    return counts;
+  }, [data]);
+
+  const presetLabel =
+    applied.time.preset === "custom"
+      ? null
+      : TIME_PRESETS.find((p) => p.key === applied.time.preset)?.label;
+
+  const renderContent = () => {
+    if (!filterParams) return <EmptyState message="沒有符合篩選條件的服務" />;
+    if (loading) return <LoadingState />;
+    if (!data) return null;
+    if (data.current.totalCount === 0) return <EmptyState message="此條件下沒有回饋紀錄" />;
+
+    const { current, previous, devices, serviceRatings } = data;
+    const ratedTotal = ratingCounts.good + ratingCounts.normal + ratingCounts.bad;
+    const goodRate = ratedTotal > 0 ? (ratingCounts.good / ratedTotal) * 100 : null;
+
+    const scoreItems = serviceRatings
+      .filter((s) => s.averageScore !== null)
+      .sort((a, b) => b.averageScore! - a.averageScore! || b.totalCount - a.totalCount);
+    const deviceMax = Math.max(...devices.items.map((i) => i.count), 1);
+
+    return (
+      <>
+        <section className="px-4 py-5 sm:px-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="cf-section-title">總覽</h2>
+            <p className="text-xs text-slate-500">
+              資料區間：{formatRange(appliedRange)}
+              {presetLabel && `（${presetLabel}）`}
+            </p>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="overflow-hidden rounded-lg border border-slate-200">
+              <SummaryStat
+                label="總平均分數"
+                value={current.averageScore === null ? "—" : current.averageScore.toFixed(1)}
+                hint={
+                  <ScoreDelta
+                    current={current.averageScore}
+                    previous={previous?.averageScore ?? null}
+                    previousRange={data.previousRange}
+                  />
+                }
+              />
+            </div>
+            <div className="overflow-hidden rounded-lg border border-slate-200">
+              <SummaryStat
+                label="好評率"
+                value={goodRate === null ? "—" : `${goodRate.toFixed(1)}%`}
+                hint={`共 ${ratingCounts.good.toLocaleString()} 筆 ${ratingLabels.good}`}
+              />
+            </div>
+            <div className="overflow-hidden rounded-lg border border-slate-200">
+              <SummaryStat
+                label="總回饋筆數"
+                value={current.totalCount.toLocaleString()}
+                hint="本期累計"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="cf-divider px-4 py-5 sm:px-5">
+          <h2 className="cf-section-title">服務評分</h2>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <ChartCard title="各服務平均分數">
+              {scoreItems.length === 0 ? (
+                <p className="text-center text-sm text-slate-400">尚無可計分的回饋</p>
+              ) : (
+                <>
+                  <HorizontalBarChart
+                    items={scoreItems.slice(0, SERVICE_CHART_LIMIT).map((s) => ({
+                      key: s.serviceId,
+                      label: truncateLabel(s.label),
+                      value: Math.round(s.averageScore! * 10) / 10,
+                      title: `${s.label}（${s.serviceId}）：${formatScore(Math.round(s.averageScore! * 10) / 10)} 分，${s.totalCount.toLocaleString()} 筆`,
+                    }))}
+                    maxValue={100}
+                    formatValue={formatScore}
+                  />
+                  <MoreServicesNote total={scoreItems.length} />
+                </>
+              )}
+            </ChartCard>
+            <ChartCard title="整體評價分佈">
+              <DonutChart
+                good={ratingCounts.good}
+                normal={ratingCounts.normal}
+                bad={ratingCounts.bad}
+                labels={ratingLabels}
+              />
+            </ChartCard>
+          </div>
+        </section>
+
+        <section className="cf-divider px-4 py-5 sm:px-5">
+          <h2 className="cf-section-title">回饋來源</h2>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <ChartCard title="各服務回饋數">
+              <HorizontalStackedBarChart
+                items={serviceRatings.slice(0, SERVICE_CHART_LIMIT).map((s) => ({
+                  key: s.serviceId,
+                  label: truncateLabel(s.label),
+                  title: `${s.label}（${s.serviceId}）`,
+                  segments: RATING_KEYS.map((r) => ({
+                    key: r,
+                    label: ratingLabels[r],
+                    value: s.ratingCounts[r] ?? 0,
+                    color: CHART_COLORS[r],
+                  })),
+                }))}
+              />
+              <MoreServicesNote total={serviceRatings.length} />
+            </ChartCard>
+            <ChartCard title="主要裝置">
+              <HorizontalBarChart
+                items={devices.items.map((d) => ({
+                  key: d.value,
+                  label: truncateLabel(d.label || "未知"),
+                  value: d.count,
+                  title: `${d.label || "未知"}：${d.count.toLocaleString()} 筆`,
+                }))}
+                maxValue={deviceMax}
+                color={CHART_COLORS.score}
+                formatValue={(v) => v.toLocaleString()}
+              />
+              <p className="mt-3 text-center text-xs text-slate-500">
+                共 {devices.distinctCount.toLocaleString()} 種裝置類型
+                {devices.distinctCount > devices.items.length ? `，顯示前 ${devices.items.length} 名` : ""}
+              </p>
+            </ChartCard>
+          </div>
+        </section>
+
+        <div className="cf-divider">
+          <ActivityLogTable
+            feedbacks={activityRows}
+            page={activityPage}
+            pageSize={ACTIVITY_PAGE_SIZE}
+            total={current.totalCount}
+            loading={activityLoading}
+            error={activityError}
+            onPageChange={changeActivityPage}
+            services={services}
+            organizations={organizations}
+            ratingLabels={ratingLabels}
+          />
+        </div>
+      </>
+    );
   };
-
-  const handleInclude = (field: StatsFilterField, value: string, label: string) =>
-    addDimensionFilter(field, value, label, "include");
-
-  const handleExclude = (field: StatsFilterField, value: string, label: string) =>
-    addDimensionFilter(field, value, label, "exclude");
-
-  const removeDimensionFilter = (id: string) => {
-    setDimensionFilters((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const activeFilterChips = (Object.keys(EMPTY_FILTERS) as (keyof Filters)[])
-    .filter((key) => appliedFilters[key])
-    .map((key) => {
-      const value = appliedFilters[key];
-      let valueLabel = value;
-      if (key === "organizationId") {
-        valueLabel = organizations.find((o) => o.id === value)?.name ?? value;
-      } else if (key === "serviceId") {
-        valueLabel = services.find((s) => s.code === value)?.name ?? value;
-      }
-      return { key, label: FILTER_LABELS[key], valueLabel };
-    });
 
   return (
     <div className="cf-analytics">
       <PageHeader
         title="回饋資料總覽"
-        description="檢視回饋趨勢、平均分數、來源分布與活動記錄"
+        description="檢視平均分數、評價分佈、回饋來源與活動記錄"
       />
-
-      <div className="cf-card mb-4 p-4 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>.cf-field]:mt-0!">
-          <Select
-            label="組織"
-            options={organizationOptions}
-            value={filters.organizationId}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, organizationId: e.target.value }))
-            }
-          />
-          <Select
-            label="服務"
-            options={serviceOptions}
-            value={filters.serviceId}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, serviceId: e.target.value }))
-            }
-          />
-          <Select
-            label="評價"
-            options={RATING_OPTIONS}
-            value={filters.feedbackRating}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, feedbackRating: e.target.value }))
-            }
-          />
-          <Input
-            label="裝置"
-            value={filters.device}
-            onChange={(e) => setFilters((f) => ({ ...f, device: e.target.value }))}
-          />
-          <Input
-            label="來源國家/地區"
-            value={filters.ipCountry}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, ipCountry: e.target.value }))
-            }
-          />
-          <Input
-            label="Session ID"
-            value={filters.sessionId}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, sessionId: e.target.value }))
-            }
-          />
-          <Input
-            label="起始時間"
-            type="datetime-local"
-            value={filters.from}
-            onChange={(e) => setFilters((f) => ({ ...f, from: e.target.value }))}
-          />
-          <Input
-            label="結束時間"
-            type="datetime-local"
-            value={filters.to}
-            onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value }))}
-          />
-        </div>
-
-        {(activeFilterChips.length > 0 || dimensionFilters.length > 0) && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {activeFilterChips.map((chip) => (
-              <span key={chip.key} className="cf-filter-chip">
-                <span className="cf-filter-chip__field">{chip.label}</span>
-                <span className="cf-filter-chip__value" title={chip.valueLabel}>
-                  {chip.valueLabel}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeFilter(chip.key)}
-                  className="cf-filter-chip__remove"
-                  aria-label={`移除 ${chip.label} 篩選`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-            {dimensionFilters.map((f) => (
-              <FilterChip
-                key={f.id}
-                filter={f}
-                onRemove={() => removeDimensionFilter(f.id)}
-              />
-            ))}
-          </div>
-        )}
-
-        <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={clearFilters} className="cf-btn-outline">
-            清除篩選
-          </button>
-          <button
-            type="button"
-            onClick={applyFilters}
-            className="cf-btn cf-btn--primary"
-          >
-            套用篩選
-          </button>
-        </div>
-      </div>
 
       {loadError && (
         <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
           <span>{loadError}</span>
-          <button type="button" onClick={refresh} className="cf-link shrink-0">
+          <button type="button" onClick={retry} className="cf-link shrink-0">
             重試
           </button>
         </div>
       )}
 
-      {loading ? (
-        <LoadingState />
-      ) : !overview || overview.totalCount === 0 ? (
-        <EmptyState message="目前尚無回饋紀錄" />
-      ) : (
-        <div className="cf-panel">
-          <TrafficChartSection
-            points={dailyTraffic}
-            interval={interval}
-            onIntervalChange={setInterval}
-            avgScore={overview.averageScore}
-            total={overview.totalCount}
-          />
-
-          <div className="cf-divider px-4 py-5 sm:px-5">
-            <h2 className="cf-section-title">熱門流量</h2>
-            <p className="cf-section-desc">
-              分析所選篩選條件下的回饋來源分布（顯示前 5 名）。
-            </p>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {STATS_DIMENSIONS.map((d) => (
-                <TopStatsPanel
-                  key={d.field}
-                  title={d.title}
-                  field={d.field}
-                  allItems={topColumns[d.field] ?? []}
-                  onInclude={handleInclude}
-                  onExclude={handleExclude}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="cf-divider">
-            <ActivityLogTable
-              feedbacks={feedbacks}
-              services={services}
-              organizations={organizations}
-              ratingLabels={ratingLabels}
-            />
-          </div>
-        </div>
-      )}
+      <div className="cf-panel">
+        <FeedbackFilterBar value={applied} ratingLabels={ratingLabels} onChange={apply} />
+        <div className="cf-divider">{renderContent()}</div>
+      </div>
     </div>
   );
 }

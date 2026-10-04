@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSubmitGuard } from "../lib/useSubmitGuard";
 import type { FeedbackRating, ScoreConfig } from "../types";
 import { getScoreConfigs, updateScoreConfig } from "../api";
 import { getApiErrorMessage } from "../api/api";
@@ -65,6 +66,7 @@ export function ScoresPage() {
     setModalOpen(true);
   };
 
+  const [saving, guardSave] = useSubmitGuard();
   const handleSave = async () => {
     if (!editingKey) return;
     const current = configs[editingKey];
@@ -123,53 +125,55 @@ export function ScoresPage() {
         <LoadingState />
       ) : (
         <div className="cf-card">
-          <table className="cf-table">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 font-medium text-slate-600">
-                  評價代碼
-                </th>
-                <th className="px-4 py-3 font-medium text-slate-600">
-                  中文名稱
-                </th>
-                <th className="px-4 py-3 font-medium text-slate-600">
-                  中文說明
-                </th>
-                <th className="px-4 py-3 font-medium text-slate-600">分數</th>
-                <th className="px-4 py-3 font-medium text-slate-600">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {RATING_KEYS.map((key) => {
-                const cfg = configs[key];
-                return (
-                  <tr key={key}>
-                    <td className="px-4 py-3 font-mono text-slate-600">
-                      {RATING_KEY_LABELS[key]}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      {cfg?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {cfg?.description ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-900">
-                      {cfg?.scoreValue ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Button
-                        variant="secondary"
-                        onClick={() => openEdit(key)}
-                        disabled={!cfg}
-                      >
-                        編輯
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="cf-table-scroll">
+            <table className="cf-table">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 font-medium text-slate-600">
+                    評價代碼
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-600">
+                    中文名稱
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-600">
+                    中文說明
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-600">分數</th>
+                  <th className="px-4 py-3 font-medium text-slate-600">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {RATING_KEYS.map((key) => {
+                  const cfg = configs[key];
+                  return (
+                    <tr key={key}>
+                      <td className="px-4 py-3 font-mono text-slate-600">
+                        {RATING_KEY_LABELS[key]}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-slate-900">
+                        {cfg?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {cfg?.description ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-slate-900">
+                        {cfg?.scoreValue ?? "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Button
+                          variant="secondary"
+                          onClick={() => openEdit(key)}
+                          disabled={!cfg}
+                        >
+                          編輯
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -218,7 +222,9 @@ export function ScoresPage() {
             <Button variant="secondary" onClick={() => setModalOpen(false)}>
               取消
             </Button>
-            <Button onClick={handleSave}>儲存</Button>
+            <Button onClick={() => guardSave(handleSave)} disabled={saving}>
+              {saving ? "儲存中…" : "儲存"}
+            </Button>
           </div>
         </div>
       </Modal>

@@ -9,7 +9,6 @@ export interface GetAuditLogsParams {
   userEmail?: string[]
   targetUserId?: string[]
   organizationId?: string[]
-  agentId?: string[]
   resource?: string[]
   clientIp?: string[]
   minSeverity?: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL'
@@ -20,10 +19,8 @@ export interface GetAuditLogsParams {
   pageToken?: string
 }
 
-// Reads Cloud Logging, which can be slower than a Firestore read, hence the longer timeout.
 export const getAuditLogs = (params: GetAuditLogsParams) =>
   instance.get<DataResponse<AuditLogEntry[]>>('/audit-logs', {
     params,
     paramsSerializer: serializeRepeatedParams,
-    timeout: 30000,
   })
