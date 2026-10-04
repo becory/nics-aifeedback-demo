@@ -262,6 +262,105 @@ textarea.cf-input {
   white-space: nowrap;
 }
 
+/* List pages: the content area below the top bar is the page's one scroller, at every window
+   size. What's above the table scrolls away like a normal page; the table's header (and an
+   organization row / nested header, below) sticks to the top of it.
+   Why not just let the window scroll: a window-sticky header needs every ancestor to be
+   non-scrolling, but a wide table needs an overflow-x box on phones — which is a scroll container
+   and swallows the sticky. Here this one box handles both directions, so nothing in between has
+   to scroll or clip. */
+.cf-page-fill {
+  height: calc(100dvh - var(--cf-topbar-height) - 52px);
+  overflow: auto;
+}
+
+/* The page itself never scrolls on top of it (also absorbs a pixel of rounding at odd zoom). */
+html:has(.cf-page-fill) {
+  overflow: hidden;
+}
+
+/* Matches .cf-content's smaller phone padding (16px top + 24px bottom). */
+@media (max-width: 767px) {
+  .cf-page-fill {
+    height: calc(100dvh - var(--cf-topbar-height) - 40px);
+  }
+}
+
+/* A table wider than the screen scrolls the whole box sideways; everything else stays put.
+   (.fixed: a Modal rendered by the page keeps its own positioning.) */
+.cf-page-fill > :not(.cf-page-fill__table, .fixed) {
+  position: sticky;
+  left: 0;
+}
+
+/* Neither the card nor the table wrapper may be a scroll container (overflow hidden/auto would
+   capture the sticky header). fit-content: the table still wraps its text to the screen width,
+   and the card only grows past it (keeping its border around the table) when it can't fit. */
+.cf-page-fill > .cf-page-fill__table {
+  overflow: visible;
+  width: fit-content;
+  min-width: 100%;
+}
+
+.cf-page-fill__table > .cf-table-scroll {
+  overflow: visible;
+}
+
+/* Header (and nested sticky layers) of a table inside a scrolling area — the cf-page-fill box,
+   or any box that scrolls vertically. */
+.cf-table-scroll--sticky-head {
+  /* Fixed heights, so each sticky layer knows where to sit: header, then an organization row
+     (OrganizationServiceTable), then that organization's nested table header. */
+  --cf-sticky-head-height: 40px;
+  --cf-sticky-org-height: 48px;
+}
+
+.cf-table-scroll--sticky-head > table > thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: var(--cf-sticky-head-height);
+  background: #fafafa;
+  /* thead's border doesn't travel with sticky cells (border-collapse), so draw it as a shadow. */
+  box-shadow: inset 0 -1px 0 #ebebeb;
+}
+
+/* An organization row sticks below the header while its services scroll past; its tbody ends
+   with them, so the next organization pushes it out. Cells need their own background to cover
+   the rows sliding underneath. */
+.cf-table-scroll--sticky-head .cf-org-row > td {
+  position: sticky;
+  top: var(--cf-sticky-head-height);
+  z-index: 2;
+  height: var(--cf-sticky-org-height);
+  background: #fff;
+  box-shadow: inset 0 -1px 0 #ebebeb;
+}
+
+.cf-table-scroll--sticky-head .cf-org-row:hover > td {
+  background: #fafafa;
+}
+
+/* Every organization is its own tbody, so the usual "no border under the last row" only
+   belongs to the last one. */
+.cf-org-section:not(:last-child) > tr:last-child > td {
+  border-bottom: 1px solid #ebebeb;
+}
+
+/* A table nested in a row of a sticky-head table (an organization's services): its header
+   sticks below the organization row while its rows scroll past, then leaves with the table. */
+.cf-nested-table th {
+  white-space: nowrap;
+}
+
+.cf-table-scroll--sticky-head .cf-nested-table > table > thead th {
+  position: sticky;
+  top: calc(var(--cf-sticky-head-height) + var(--cf-sticky-org-height));
+  z-index: 1;
+  background: #fafafa;
+  box-shadow: inset 0 -1px 0 #ebebeb;
+}
+
 .cf-table {
   width: 100%;
   border-collapse: collapse;

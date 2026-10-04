@@ -231,7 +231,8 @@ export function UsersPage() {
   }));
 
   return (
-    <>
+    // Fills the viewport: the table card takes what's left and scrolls on its own (one scrollbar).
+    <div className="cf-page-fill">
       <PageHeader
         title="使用者管理"
         description="管理系統使用者帳號與權限（所有使用者均須綁定二階段驗證）"
@@ -252,8 +253,8 @@ export function UsersPage() {
       ) : items.length === 0 ? (
         <EmptyState message="尚無使用者資料" />
       ) : (
-        <div className="cf-card">
-          <div className="cf-table-scroll">
+        <div className="cf-card cf-page-fill__table">
+          <div className="cf-table-scroll cf-table-scroll--sticky-head">
             <table className="cf-table">
               <thead>
                 <tr>
@@ -468,6 +469,6 @@ export function UsersPage() {
           </div>
         </div>
       </Modal>
-    </>
+    </div>
   );
 }

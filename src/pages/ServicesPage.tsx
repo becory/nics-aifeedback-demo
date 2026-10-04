@@ -242,7 +242,8 @@ export function ServicesPage() {
   const orgNameOf = (orgId: string) => organizations.find((o) => o.id === orgId)?.name ?? "—";
 
   return (
-    <>
+    // Fills the viewport: the table card takes what's left and scrolls on its own (one scrollbar).
+    <div className="cf-page-fill">
       <PageHeader
         title="服務管理"
         description="管理組織、組織下的服務，以及各組織的離線金鑰"
@@ -279,7 +280,7 @@ export function ServicesPage() {
       ) : organizations.length === 0 ? (
         <EmptyState message="尚無組織資料，點擊「新增組織」開始建立" />
       ) : (
-        <div className="cf-card">
+        <div className="cf-card cf-page-fill__table">
           <OrganizationServiceTable
             // Remount when the organization list reloads, so a deep link's expansion applies.
             key={reloadKey}
@@ -406,6 +407,6 @@ export function ServicesPage() {
           </div>
         </div>
       </Modal>
-    </>
+    </div>
   );
 }

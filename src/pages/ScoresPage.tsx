@@ -106,7 +106,8 @@ export function ScoresPage() {
   };
 
   return (
-    <>
+    // Fills the viewport: the table card takes what's left and scrolls on its own (one scrollbar).
+    <div className="cf-page-fill">
       <PageHeader
         title="分數管理"
         description="設定各評價等級的分數與中文說明，總覽的平均分數將依此計算"
@@ -124,8 +125,8 @@ export function ScoresPage() {
       {loading ? (
         <LoadingState />
       ) : (
-        <div className="cf-card">
-          <div className="cf-table-scroll">
+        <div className="cf-card cf-page-fill__table">
+          <div className="cf-table-scroll cf-table-scroll--sticky-head">
             <table className="cf-table">
               <thead>
                 <tr>
@@ -228,6 +229,6 @@ export function ScoresPage() {
           </div>
         </div>
       </Modal>
-    </>
+    </div>
   );
 }

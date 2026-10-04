@@ -179,7 +179,8 @@ export function ImportPage() {
   };
 
   return (
-    <>
+    // Fills the viewport: the table card takes what's left and scrolls on its own (one scrollbar).
+    <div className="cf-page-fill">
       <PageHeader
         title="資料匯入"
         description="上傳部署端匯出的加密回饋資料，匯入至所屬組織"
@@ -284,8 +285,8 @@ export function ImportPage() {
       ) : logs.length === 0 ? (
         <EmptyState message="尚無匯入紀錄" />
       ) : (
-        <div className="cf-card">
-          <div className="cf-table-scroll">
+        <div className="cf-card cf-page-fill__table">
+          <div className="cf-table-scroll cf-table-scroll--sticky-head">
             <table className="cf-table">
               <thead>
                 <tr>
@@ -454,6 +455,6 @@ export function ImportPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

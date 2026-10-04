@@ -211,7 +211,8 @@ export function AuditLogsPage() {
   ];
 
   return (
-    <>
+    // Fills the viewport: the table card takes what's left and scrolls on its own (one scrollbar).
+    <div className="cf-page-fill">
       <PageHeader
         title="稽核日誌"
         description="查詢登入、權限與管理操作等稽核事件（保留期限約 30 天）"
@@ -245,9 +246,9 @@ export function AuditLogsPage() {
       ) : entries.length === 0 ? (
         !error && <EmptyState message="此條件下沒有稽核事件" />
       ) : (
-        <div className="cf-card">
+        <div className="cf-card cf-page-fill__table">
           <p className="px-4 pt-3 text-xs text-slate-500">已載入 {entries.length} 筆（最新在前）</p>
-          <div className="cf-table-scroll">
+          <div className="cf-table-scroll cf-table-scroll--sticky-head">
             <table className="cf-table">
               <thead>
                 <tr>
@@ -313,6 +314,6 @@ export function AuditLogsPage() {
         actorLabel={selected ? actorLabel(selected) : undefined}
         onClose={() => setSelected(null)}
       />
-    </>
+    </div>
   );
 }
