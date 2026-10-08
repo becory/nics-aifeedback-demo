@@ -33,6 +33,7 @@ export function FeedbackFilterBar({ value, ratingLabels, onChange }: FeedbackFil
       onChange={onChange}
       presets={TIME_PRESETS}
       customKey="custom"
+      dateOnly
       fieldGroups={fieldGroups}
     />
   );

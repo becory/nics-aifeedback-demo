@@ -17,7 +17,10 @@ export const TIME_PRESETS: { key: TimePresetKey; label: string; days?: number }[
 
 export const DEFAULT_TIME_PRESET: TimePresetKey = '30d'
 
-/** customFrom/customTo are datetime-local strings, only used when preset is 'custom'. */
+/**
+ * customFrom/customTo are whole days ("YYYY-MM-DD"), only used when preset is 'custom'.
+ * The range covers customFrom 00:00:00 through customTo 23:59:59.
+ */
 export type TimeSelection = TimeSelectionOf<TimePresetKey>
 
 export const DEFAULT_TIME_SELECTION: TimeSelection = {
@@ -34,7 +37,10 @@ export interface TimeRange {
 
 export function resolveTimeRange(selection: TimeSelection, now = new Date()): TimeRange {
   if (selection.preset === 'custom') {
-    return { from: selection.customFrom, to: selection.customTo || undefined }
+    return {
+      from: selection.customFrom ? `${selection.customFrom}T00:00:00` : '',
+      to: selection.customTo ? `${selection.customTo}T23:59:59` : undefined,
+    }
   }
   const days = TIME_PRESETS.find((p) => p.key === selection.preset)?.days ?? 30
   return { from: toDatetimeLocal(new Date(now.getTime() - days * 86_400_000).toISOString()) }
@@ -193,10 +199,11 @@ export function filtersFromSearchParams(params: URLSearchParams): {
   page: number
 } {
   const range = params.get('range')
-  const from = params.get('from') ?? ''
-  const to = params.get('to') ?? ''
-  const validCustom =
-    range === 'custom' && !Number.isNaN(new Date(from).getTime()) && (!to || new Date(from) <= new Date(to))
+  // Older links carried datetime-local values; keep just their date part.
+  const from = (params.get('from') ?? '').slice(0, 10)
+  const to = (params.get('to') ?? '').slice(0, 10)
+  const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(v).getTime())
+  const validCustom = range === 'custom' && isDate(from) && (!to || (isDate(to) && from <= to))
 
   let time: TimeSelection = DEFAULT_TIME_SELECTION
   if (validCustom) {

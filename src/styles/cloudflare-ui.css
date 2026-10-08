@@ -506,3 +506,38 @@ html:has(.cf-page-fill) {
     transition: none;
   }
 }
+
+/* Calendar popover (components/DateTimeInput.tsx, react-day-picker) */
+.cf-datepicker .rdp-root {
+  --rdp-accent-color: #0055dc;
+  --rdp-accent-background-color: #e8f0fe;
+  --rdp-day-height: 36px;
+  --rdp-day-width: 36px;
+  --rdp-day_button-height: 34px;
+  --rdp-day_button-width: 34px;
+  --rdp-day_button-border-radius: 4px;
+  --rdp-nav_button-height: 2rem;
+  --rdp-nav_button-width: 2rem;
+  --rdp-nav-height: 2.25rem;
+  font-size: 14px;
+}
+
+.cf-datepicker .rdp-month_caption {
+  padding-left: 8px;
+  font-size: 14px;
+}
+
+.cf-datepicker .rdp-day_button:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+.cf-datepicker .rdp-selected {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cf-datepicker .rdp-selected .rdp-day_button,
+.cf-datepicker .rdp-selected .rdp-day_button:hover {
+  background: #0055dc;
+  color: #fff;
+}

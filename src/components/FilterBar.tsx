@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { addCondition, conditionKey, type Condition, type TimeSelectionOf } from "../lib/filterConditions";
-import { DateTimeInput, FieldSpinner } from "./ui";
+import { DateTimeInput } from "./DateTimeInput";
+import { FieldSpinner } from "./ui";
 
 // Generic two-row filter bar (feedback overview, audit logs):
 //   ⏲ 時間區間：[preset] [preset] … [自訂｜開始 - 結束]
@@ -40,6 +41,8 @@ interface FilterBarProps<P extends string, F extends string> {
   fieldPlaceholder?: string;
   /** Extra control on the right of the filter row, before 清除. */
   extra?: ReactNode;
+  /** Custom range picks whole days (customFrom/customTo are YYYY-MM-DD) instead of date + time. */
+  dateOnly?: boolean;
 }
 
 // Both rows share one control height (the filter row's), so 時間區間 and 篩選器 line up.
@@ -75,7 +78,10 @@ export function FilterBar<P extends string, F extends string>({
   fieldGroups,
   fieldPlaceholder,
   extra,
+  dateOnly = false,
 }: FilterBarProps<P, F>) {
+  const unit = dateOnly ? "日期" : "時間";
+  const inputType = dateOnly ? "date" : "datetime-local";
   const { time, conditions } = value;
   const hintId = useId();
 
@@ -109,11 +115,11 @@ export function FilterBar<P extends string, F extends string>({
   const applyCustom = (from: string, to: string) => {
     // Invalid ranges keep the current range and flag the start field.
     if (!from) {
-      setCustomError("請設定起始時間");
+      setCustomError(`請設定起始${unit}`);
       return;
     }
     if (to && new Date(from) > new Date(to)) {
-      setCustomError("起始時間不可晚於結束時間");
+      setCustomError(`起始${unit}不可晚於結束${unit}`);
       return;
     }
     setCustomError("");
@@ -163,7 +169,7 @@ export function FilterBar<P extends string, F extends string>({
           </span>
           {presets.map((p) =>
             p.key === customKey && customOpen ? (
-              // [自訂｜開始時間 - 結束時間]: applied once focus leaves the whole group, so
+              // [自訂｜開始 - 結束]: applied once focus leaves the whole group, so
               // moving from start to end doesn't query an open-ended range first.
               <span key={p.key} className="relative inline-flex">
                 <div
@@ -179,7 +185,8 @@ export function FilterBar<P extends string, F extends string>({
                     {p.label}
                   </span>
                   <DateTimeInput
-                    aria-label="開始時間"
+                    type={inputType}
+                    aria-label={`開始${unit}`}
                     autoFocus
                     value={customFrom}
                     onChange={(v) => {
@@ -195,12 +202,13 @@ export function FilterBar<P extends string, F extends string>({
                   />
                   <span className="flex items-center px-1 text-slate-400">-</span>
                   <DateTimeInput
-                    aria-label="結束時間"
+                    type={inputType}
+                    aria-label={`結束${unit}`}
                     title="留空表示至今"
                     value={customTo}
                     onChange={(v) => {
                       setCustomTo(v);
-                      if (customError === "起始時間不可晚於結束時間") setCustomError("");
+                      if (customError === `起始${unit}不可晚於結束${unit}`) setCustomError("");
                     }}
                     min={customFrom || undefined}
                     className="pr-1"

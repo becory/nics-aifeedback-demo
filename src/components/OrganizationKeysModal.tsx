@@ -18,6 +18,7 @@ import type {
   OrganizationKey,
   Service,
 } from "../types";
+import { DateTimeInput } from "./DateTimeInput";
 import { Modal } from "./Modal";
 import { Button, Input, LoadingState } from "./ui";
 
@@ -486,12 +487,13 @@ function CreateKeyForm({
         >
           到期時間
         </label>
-        <input
+        <DateTimeInput
           id="orgKeyExpiresAt"
-          type="datetime-local"
+          aria-label="到期時間"
           value={expiresAt}
-          onChange={(e) => setExpiresAt(e.target.value)}
-          className="cf-input"
+          onChange={setExpiresAt}
+          className="w-full"
+          inputClassName="cf-input"
         />
       </div>
       <p className="rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-500">
