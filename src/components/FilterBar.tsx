@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { addCondition, conditionKey, type Condition, type TimeSelectionOf } from "../lib/filterConditions";
-import { DateTimeInput } from "./DateTimeInput";
+import { containsFocus } from "../lib/popoverFocus";
+import { DateTimeInput, type DateTimeInputHandle } from "./DateTimeInput";
 import { FieldSpinner } from "./ui";
 
 // Generic two-row filter bar (feedback overview, audit logs):
@@ -90,8 +91,21 @@ export function FilterBar<P extends string, F extends string>({
   const defaultField = fields[0]?.value;
 
   // Custom range is edited locally and only applied once it is valid.
-  const [customFrom, setCustomFrom] = useState(time.customFrom);
-  const [customTo, setCustomTo] = useState(time.customTo);
+  const [customFrom, setCustomFromState] = useState(time.customFrom);
+  const [customTo, setCustomToState] = useState(time.customTo);
+  // Mirrors of the two ends, current within the same event: a typed date is applied by the
+  // field's own blur handler, which runs just before the group's blur handler reads the range.
+  const customFromRef = useRef(time.customFrom);
+  const customToRef = useRef(time.customTo);
+  const setCustomFrom = (v: string) => {
+    customFromRef.current = v;
+    setCustomFromState(v);
+  };
+  const setCustomTo = (v: string) => {
+    customToRef.current = v;
+    setCustomToState(v);
+  };
+  const customEndRef = useRef<DateTimeInputHandle>(null);
   // 自訂 opens the date inputs without touching the applied range until it is valid.
   const [customOpen, setCustomOpen] = useState(time.preset === customKey);
   // Custom range problems are flagged on the start field (red) with a small hint under 自訂.
@@ -176,8 +190,8 @@ export function FilterBar<P extends string, F extends string>({
                   ref={customRef}
                   className="inline-flex h-8 items-stretch overflow-hidden rounded border border-[#0055dc] bg-white"
                   onBlur={(e) => {
-                    if (!customRef.current?.contains(e.relatedTarget as Node | null)) {
-                      applyCustom(customFrom, customTo);
+                    if (!containsFocus(customRef.current, e.relatedTarget as Node | null)) {
+                      applyCustom(customFromRef.current, customToRef.current);
                     }
                   }}
                 >
@@ -194,6 +208,10 @@ export function FilterBar<P extends string, F extends string>({
                       // Editing either end drops a stale hint; it is re-checked when focus leaves.
                       if (v) setCustomError("");
                     }}
+                    // Picking the start moves on to the end while it's empty, else applies.
+                    onCommit={(v) =>
+                      customToRef.current ? applyCustom(v, customToRef.current) : customEndRef.current?.open()
+                    }
                     max={customTo || undefined}
                     aria-invalid={!!customError}
                     aria-describedby={customError ? hintId : undefined}
@@ -202,6 +220,7 @@ export function FilterBar<P extends string, F extends string>({
                   />
                   <span className="flex items-center px-1 text-slate-400">-</span>
                   <DateTimeInput
+                    ref={customEndRef}
                     type={inputType}
                     aria-label={`結束${unit}`}
                     title="留空表示至今"
@@ -210,6 +229,7 @@ export function FilterBar<P extends string, F extends string>({
                       setCustomTo(v);
                       if (customError === `起始${unit}不可晚於結束${unit}`) setCustomError("");
                     }}
+                    onCommit={(v) => applyCustom(customFromRef.current, v)}
                     min={customFrom || undefined}
                     className="pr-1"
                     inputClassName="border-0 px-2 py-1 text-sm outline-none"

@@ -541,3 +541,10 @@ html:has(.cf-page-fill) {
   background: #0055dc;
   color: #fff;
 }
+
+/* Hour / minute selects: compact, with room on the right for the arrow. */
+.cf-datepicker .cf-select-native {
+  width: auto;
+  padding: 4px 26px 4px 8px;
+  background-position: right 8px center;
+}
