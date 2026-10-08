@@ -166,7 +166,7 @@ export interface AuditLogEntry {
   properties: Record<string, unknown>
 }
 
-export type ImportLogStatus = 'Succeeded' | 'PartiallySucceeded' | 'Failed'
+export type ImportLogStatus = 'Succeeded' | 'PartiallySucceeded' | 'Duplicate' | 'Failed'
 
 export interface ImportLog {
   id: string

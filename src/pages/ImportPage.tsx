@@ -20,12 +20,14 @@ import {
 const STATUS_LABELS: Record<string, string> = {
   Succeeded: "成功",
   PartiallySucceeded: "部分成功",
+  Duplicate: "重複",
   Failed: "失敗",
 };
 
 function statusBadgeClass(status: string): string {
   if (status === "Succeeded") return "bg-green-100 text-green-700";
   if (status === "PartiallySucceeded") return "bg-amber-100 text-amber-700";
+  if (status === "Duplicate") return "bg-slate-100 text-slate-700";
   return "bg-red-100 text-red-700";
 }
 
