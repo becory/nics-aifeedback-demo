@@ -40,6 +40,10 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// The backend answers 423 while the account is locked (3 consecutive failures, 15 minutes).
+const ACCOUNT_LOCKED_MESSAGE = "帳號因連續驗證失敗已被鎖定，請 15 分鐘後再試";
+const isLocked = (error: unknown) => axios.isAxiosError(error) && error.response?.status === 423;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -105,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { step: "2fa_verify" as const };
     } catch (error) {
+      if (isLocked(error)) return { error: ACCOUNT_LOCKED_MESSAGE };
       if (axios.isAxiosError(error)) {
         console.error(error.response);
         return { error: "帳號或密碼錯誤" };
@@ -129,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userInfo = await getUserInfo();
         setUser(userInfo.data);
       } catch (error) {
+        if (isLocked(error)) return ACCOUNT_LOCKED_MESSAGE;
         if (axios.isAxiosError(error)) {
           console.error(error.response);
           return "驗證碼錯誤";
@@ -154,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userInfo = await getUserInfo();
         setUser(userInfo.data);
       } catch (error) {
+        if (isLocked(error)) return ACCOUNT_LOCKED_MESSAGE;
         if (axios.isAxiosError(error)) {
           console.error(error.response);
           return "驗證碼錯誤，請確認已掃描 QR Code";
