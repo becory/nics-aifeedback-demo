@@ -5,7 +5,7 @@ import { Button } from "../components/ui";
 import { useAuth } from "../lib/auth";
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, notice } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -31,6 +31,7 @@ export function LoginPage() {
   return (
     <AuthLayout title="AI 回饋系統" description="請登入管理後台">
       <form onSubmit={handleSubmit}>
+        {notice && !error && <div className="cf-alert cf-alert--success">{notice}</div>}
         {error && <div className="cf-alert cf-alert--error">{error}</div>}
 
         <div className="cf-field">

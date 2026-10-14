@@ -13,6 +13,7 @@ import { ServiceListPage } from './pages/ServiceListPage'
 import { SecuritySettingsPage } from './pages/SecuritySettingsPage'
 import { FeedbackOverviewPage } from './pages/FeedbackOverviewPage'
 import { ImportPage } from './pages/ImportPage'
+import { ForcePasswordChangePage } from './pages/ForcePasswordChangePage'
 import { TopProgressBar } from './components/TopProgressBar'
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
           </Route>
 
           <Route element={<ProtectedRoute />}>
+            <Route path="/password/change-required" element={<ForcePasswordChangePage />} />
             <Route element={<Layout />}>
               <Route path="/feedback-overview" element={<FeedbackOverviewPage />} />
               <Route path="/import" element={<ImportPage />} />

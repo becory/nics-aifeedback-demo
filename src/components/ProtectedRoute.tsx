@@ -1,9 +1,10 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getDefaultHomePath } from "../lib/routes";
 
 export function ProtectedRoute() {
-  const { ready, session } = useAuth();
+  const { ready, session, user } = useAuth();
+  const location = useLocation();
 
   if (!ready) {
     return (
@@ -20,6 +21,12 @@ export function ProtectedRoute() {
     if (session.requiresTwoFactor) return <Navigate to="/2fa/verify" replace />;
     return <Navigate to="/login" replace />;
   }
+
+  const onForcedChangePage = location.pathname === "/password/change-required";
+  if (user?.mustChangePassword && !onForcedChangePage)
+    return <Navigate to="/password/change-required" replace />;
+  if (!user?.mustChangePassword && onForcedChangePage)
+    return <Navigate to={getDefaultHomePath(user?.isSystemAdmin ?? false)} replace />;
 
   return <Outlet />;
 }

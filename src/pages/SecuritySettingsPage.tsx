@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import { postChangePassword, postResetTwoFactor } from "../api/auth";
 import { getApiErrorMessage } from "../api/api";
 import { Button, Input, PageHeader } from "../components/ui";
+import { PASSWORD_RULE_HINT } from "../lib/passwordRules";
 
 export function SecuritySettingsPage() {
   const { user, logout } = useAuth();
@@ -13,7 +14,6 @@ export function SecuritySettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  const [passwordSuccess, setPasswordSuccess] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   const [resetPassword, setResetPassword] = useState("");
@@ -22,7 +22,6 @@ export function SecuritySettingsPage() {
 
   const handleChangePassword = async () => {
     setPasswordError("");
-    setPasswordSuccess("");
 
     if (!user) {
       setPasswordError("請先登入");
@@ -56,10 +55,8 @@ export function SecuritySettingsPage() {
       setPasswordLoading(false);
     }
 
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setPasswordSuccess("密碼已更新");
+    logout("密碼已更新，請以新密碼重新登入");
+    navigate("/login");
   };
 
   const handleResetTwoFactor = async () => {
@@ -102,11 +99,6 @@ export function SecuritySettingsPage() {
           {passwordError && (
             <div className="mb-4 cf-alert cf-alert--error">{passwordError}</div>
           )}
-          {passwordSuccess && (
-            <div className="mb-4 cf-alert cf-alert--success">
-              {passwordSuccess}
-            </div>
-          )}
 
           <div className="space-y-4">
             <Input
@@ -123,6 +115,7 @@ export function SecuritySettingsPage() {
               onChange={(e) => setNewPassword(e.target.value)}
               autoComplete="new-password"
             />
+            <p className="-mt-2 text-xs text-slate-500">{PASSWORD_RULE_HINT}</p>
             <Input
               label="確認新密碼"
               type="password"

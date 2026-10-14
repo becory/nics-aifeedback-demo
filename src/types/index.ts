@@ -41,6 +41,7 @@ export interface User {
   organizationIds: string[]
   isSystemAdmin: boolean
   twoFactorEnabled?: boolean
+  mustChangePassword?: boolean
 }
 
 export interface CreateUser extends User {
