@@ -14,6 +14,7 @@ export const AUDIT_EVENT_LABELS: Record<string, string> = {
   "user.created": "新增使用者",
   "user.updated": "更新使用者",
   "user.deleted": "刪除使用者",
+  "user.restored": "恢復使用者",
   "user.password_reset": "管理員重設密碼",
   "user.2fa_reset": "管理員重設雙因素驗證",
   "user.org_access_granted": "授予組織權限",

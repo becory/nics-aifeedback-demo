@@ -84,8 +84,15 @@ function sharedRefresh(handler: RefreshHandler): Promise<void> {
 
 // For callers outside the request interceptor (the idle keep-alive): goes through the same
 // shared promise, so it never races an interceptor-triggered refresh of the single-use token.
+// A 401 means the server ended this session, so sign out right away instead of waiting for
+// the next API call.
 export const refreshNow = (): Promise<void> =>
-  refreshHandler ? sharedRefresh(refreshHandler) : Promise.resolve();
+  refreshHandler
+    ? sharedRefresh(refreshHandler).catch((error) => {
+        if (axios.isAxiosError(error) && error.response?.status === 401) onUnauthorized?.();
+        throw error;
+      })
+    : Promise.resolve();
 
 // Refresh this long before expiry, so a request never goes out with a token about to lapse.
 // Only requests trigger it: an idle tab doesn't renew its session on its own.
