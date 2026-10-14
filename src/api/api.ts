@@ -52,11 +52,17 @@ export function serializeRepeatedParams(params: Record<string, unknown>): string
   return usp.toString();
 }
 
+// API errors are { message, errors? } — the same shape as the realtime feedback API. `errors`
+// carries field-level validation messages.
 export function getApiErrorMessage(error: unknown): string | undefined {
-  if (axios.isAxiosError(error) && typeof error.response?.data === "string") {
-    return error.response.data;
-  }
-  return undefined;
+  if (!axios.isAxiosError(error)) return undefined;
+  const data: unknown = error.response?.data;
+  if (!data || typeof data !== "object") return undefined;
+  const body = data as { message?: unknown; errors?: unknown };
+  const message = typeof body.message === "string" ? body.message : "";
+  const errors = Array.isArray(body.errors) ? body.errors.filter((e): e is string => typeof e === "string") : [];
+  const text = [message, ...errors].filter(Boolean).join(" ");
+  return text || undefined;
 }
 
 // Auth calls never trigger a refresh. /auth/me is only called right after a token was issued
@@ -75,6 +81,11 @@ function sharedRefresh(handler: RefreshHandler): Promise<void> {
   });
   return refreshPromise;
 }
+
+// For callers outside the request interceptor (the idle keep-alive): goes through the same
+// shared promise, so it never races an interceptor-triggered refresh of the single-use token.
+export const refreshNow = (): Promise<void> =>
+  refreshHandler ? sharedRefresh(refreshHandler) : Promise.resolve();
 
 // Refresh this long before expiry, so a request never goes out with a token about to lapse.
 // Only requests trigger it: an idle tab doesn't renew its session on its own.

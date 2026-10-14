@@ -38,12 +38,17 @@ function isExpired(key: OrganizationKey): boolean {
   return new Date(key.expiresAt).getTime() <= Date.now();
 }
 
-// The .env endpoint is requested as a blob, so its error bodies arrive as a Blob too.
+// The .env endpoint is requested as a blob, so its error body arrives as a Blob too.
 async function getBlobApiErrorMessage(
   error: unknown,
 ): Promise<string | undefined> {
   if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
-    return (await error.response.data.text()) || undefined;
+    try {
+      const message = (JSON.parse(await error.response.data.text()) as { message?: unknown }).message;
+      return typeof message === "string" && message ? message : undefined;
+    } catch {
+      return undefined;
+    }
   }
   return getApiErrorMessage(error);
 }

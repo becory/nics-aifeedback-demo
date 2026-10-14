@@ -21,6 +21,7 @@ import {
   updateUser,
 } from "../api";
 import { getApiErrorMessage } from "../api/api";
+import { PASSWORD_RULE_HINT } from "../lib/passwordRules";
 
 function generateId() {
   return crypto.randomUUID();
@@ -362,12 +363,15 @@ export function UsersPage() {
             />
           </div>
           {!editing && (
-            <Input
-              label="密碼"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <>
+              <Input
+                label="密碼"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <p className="-mt-2 text-xs text-slate-500">{PASSWORD_RULE_HINT}</p>
+            </>
           )}
           <CheckboxGroup
             label="所屬組織（可多選）"
@@ -451,6 +455,7 @@ export function UsersPage() {
             onChange={(e) => setNewPassword(e.target.value)}
             autoComplete="new-password"
           />
+          <p className="-mt-2 text-xs text-slate-500">{PASSWORD_RULE_HINT}</p>
           <Input
             label="確認新密碼"
             type="password"

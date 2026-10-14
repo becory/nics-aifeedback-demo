@@ -6,7 +6,6 @@ import { instance, serializeRepeatedParams } from './api';
 export interface GetAuditLogsParams {
   eventType?: string[]
   userId?: string[]
-  userEmail?: string[]
   targetUserId?: string[]
   organizationId?: string[]
   resource?: string[]

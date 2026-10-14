@@ -18,31 +18,39 @@ import {
   postRefresh,
 } from "../api/auth";
 import {
+  refreshNow,
   setAccessToken,
   setOnUnauthorized,
   setRefreshHandler,
 } from "../api/api";
 import axios from "axios";
+import { useIdleLogout } from "./idleLogout";
 
 interface AuthContextValue {
   ready: boolean;
   session: Session | null;
   user: User | null;
+  notice: string | null;
   login: (
     username: string,
     password: string,
   ) => Promise<{ error?: string; step?: "2fa_setup" | "2fa_verify" }>;
   verify2FA: (code: string) => Promise<string | null>;
   setup2FA: (code: string) => Promise<string | null>;
-  logout: () => void;
+  logout: (notice?: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+// The backend answers 423 while the account is locked (3 consecutive failures, 15 minutes).
+const ACCOUNT_LOCKED_MESSAGE = "帳號因連續驗證失敗已被鎖定，請 15 分鐘後再試";
+const isLocked = (error: unknown) => axios.isAxiosError(error) && error.response?.status === 423;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const didInit = useRef(false);
 
   const refreshSession = useCallback(async () => {
@@ -86,6 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(null);
       setSession(null);
       setUser(null);
+      // The server no longer accepts this session (refresh token expired or revoked).
+      setNotice("登入已逾時，系統已自動登出，請重新登入");
     });
     return () => {
       setRefreshHandler(null);
@@ -94,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshSession]);
 
   const login = useCallback(async (username: string, password: string) => {
+    setNotice(null);
     try {
       const getLoginData = await postLogin(username, password);
       setSession(getLoginData.data);
@@ -102,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return { step: "2fa_verify" as const };
     } catch (error) {
+      if (isLocked(error)) return { error: ACCOUNT_LOCKED_MESSAGE };
       if (axios.isAxiosError(error)) {
         console.error(error.response);
         return { error: "帳號或密碼錯誤" };
@@ -126,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userInfo = await getUserInfo();
         setUser(userInfo.data);
       } catch (error) {
+        if (isLocked(error)) return ACCOUNT_LOCKED_MESSAGE;
         if (axios.isAxiosError(error)) {
           console.error(error.response);
           return "驗證碼錯誤";
@@ -151,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userInfo = await getUserInfo();
         setUser(userInfo.data);
       } catch (error) {
+        if (isLocked(error)) return ACCOUNT_LOCKED_MESSAGE;
         if (axios.isAxiosError(error)) {
           console.error(error.response);
           return "驗證碼錯誤，請確認已掃描 QR Code";
@@ -163,24 +177,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [session],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback((nextNotice?: string) => {
     postLogout().catch(() => {});
     setAccessToken(null);
     setSession(null);
     setUser(null);
+    setNotice(nextNotice ?? null);
   }, []);
+
+  const logoutForIdle = useCallback(() => logout("閒置超過 30 分鐘，系統已自動登出"), [logout]);
+  useIdleLogout(!!session?.accessToken, logoutForIdle, refreshNow);
 
   const value = useMemo(
     () => ({
       ready,
       session,
       user,
+      notice,
       login,
       verify2FA,
       setup2FA,
       logout,
     }),
-    [ready, session, user, login, verify2FA, setup2FA, logout],
+    [ready, session, user, notice, login, verify2FA, setup2FA, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

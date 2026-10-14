@@ -41,6 +41,7 @@ export interface User {
   organizationIds: string[]
   isSystemAdmin: boolean
   twoFactorEnabled?: boolean
+  mustChangePassword?: boolean
 }
 
 export interface CreateUser extends User {
@@ -160,7 +161,6 @@ export interface AuditLogEntry {
   description?: string | null
   /** Always the acting user; whoever was acted on is in properties (targetUserId, keyId, ...). */
   userId?: string | null
-  userEmail?: string | null
   clientIp?: string | null
   resource?: string | null
   properties: Record<string, unknown>
