@@ -363,15 +363,13 @@ export function UsersPage() {
             />
           </div>
           {!editing && (
-            <>
-              <Input
-                label="密碼"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <p className="-mt-2 text-xs text-slate-500">{PASSWORD_RULE_HINT}</p>
-            </>
+            <Input
+              label="密碼"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              hint={PASSWORD_RULE_HINT}
+            />
           )}
           <CheckboxGroup
             label="所屬組織（可多選）"
@@ -454,8 +452,8 @@ export function UsersPage() {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             autoComplete="new-password"
+            hint={PASSWORD_RULE_HINT}
           />
-          <p className="-mt-2 text-xs text-slate-500">{PASSWORD_RULE_HINT}</p>
           <Input
             label="確認新密碼"
             type="password"

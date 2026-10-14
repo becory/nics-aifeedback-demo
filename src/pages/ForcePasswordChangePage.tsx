@@ -42,8 +42,8 @@ export function ForcePasswordChangePage() {
         <Input label="目前密碼" type="password" value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" required />
         <Input label="新密碼" type="password" value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" required />
-        <p className="-mt-2 mb-3 text-xs text-slate-500">{PASSWORD_RULE_HINT}</p>
+          onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" required
+          hint={PASSWORD_RULE_HINT} />
         <Input label="確認新密碼" type="password" value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" required />
         <Button type="submit" disabled={loading} className="cf-btn--block mt-6">
