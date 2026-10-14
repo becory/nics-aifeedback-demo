@@ -22,6 +22,14 @@ export function ProtectedRoute() {
     return <Navigate to="/login" replace />;
   }
 
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
+        <div className="cf-spinner" />
+      </div>
+    );
+  }
+
   const onForcedChangePage = location.pathname === "/password/change-required";
   if (user?.mustChangePassword && !onForcedChangePage)
     return <Navigate to="/password/change-required" replace />;
