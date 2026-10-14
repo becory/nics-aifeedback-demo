@@ -75,10 +75,7 @@ function AuditLogDetail({ entry, actorLabel }: { entry: AuditLogEntry; actorLabe
         </p>
         <p>
           <span className="text-slate-500">操作者：</span>
-          {actorLabel || entry.userEmail || "—"}
-          {actorLabel && entry.userEmail && actorLabel !== entry.userEmail && (
-            <span className="ml-1 text-xs text-slate-400">{entry.userEmail}</span>
-          )}
+          {actorLabel || "—"}
         </p>
         <p>
           <span className="text-slate-500">IP：</span>

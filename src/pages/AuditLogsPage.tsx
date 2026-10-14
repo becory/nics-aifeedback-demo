@@ -61,7 +61,7 @@ export function AuditLogsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    // Dropdown sources are best-effort: without them the filters still work via email/IP and
+    // Dropdown sources are best-effort: without them the filters still work via id/IP and
     // the list falls back to raw ids.
     Promise.allSettled([getUsers(true), getOrganizations()]).then(([usersRes, orgsRes]) => {
       if (cancelled) return;
@@ -143,16 +143,15 @@ export function AuditLogsPage() {
 
   const actorLabel = (entry: AuditLogEntry): string => {
     const user = entry.userId ? usersById.get(entry.userId) : undefined;
-    return user?.name || entry.userEmail || "—";
+    return user ? (user.isDeleted ? `${user.name}（已刪除）` : user.name) : entry.userId ?? "—";
   };
 
   // Whoever/whatever was acted on, most specific first.
   const targetLabel = (entry: AuditLogEntry): string => {
     const targetUserId = propertyString(entry, "targetUserId");
-    const targetEmail = propertyString(entry, "targetEmail");
-    if (targetEmail || targetUserId) {
-      const user = targetUserId ? usersById.get(targetUserId) : undefined;
-      return user?.name ?? targetEmail ?? targetUserId!;
+    if (targetUserId) {
+      const user = usersById.get(targetUserId);
+      return user ? (user.isDeleted ? `${user.name}（已刪除）` : user.name) : targetUserId;
     }
     // Older agent.* events (still within retention) carry only the agent's code/id.
     const agentId = propertyString(entry, "agentId");
@@ -192,7 +191,6 @@ export function AuditLogsPage() {
       label: "操作者",
       fields: [
         { value: "userId", label: "操作者", options: userOptions, loading: optionsLoading },
-        { value: "userEmail", label: "操作者 Email", placeholder: "可查已刪除或不存在的帳號" },
         { value: "clientIp", label: "IP", placeholder: "例如：203.0.113.5" },
       ],
     },

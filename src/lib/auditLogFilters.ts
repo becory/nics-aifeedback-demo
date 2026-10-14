@@ -22,7 +22,6 @@ export type AuditFilterField =
   | 'category'
   | 'minSeverity'
   | 'userId'
-  | 'userEmail'
   | 'targetUserId'
   | 'organizationId'
   | 'clientIp'
@@ -31,7 +30,6 @@ export const AUDIT_FILTER_FIELDS: AuditFilterField[] = [
   'category',
   'minSeverity',
   'userId',
-  'userEmail',
   'targetUserId',
   'organizationId',
   'clientIp',
@@ -84,7 +82,6 @@ export function buildAuditLogParams(filters: AuditLogFilters, pageSize: number):
     eventType: eventType.length ? eventType : undefined,
     minSeverity: valuesOf('minSeverity')?.[0] as GetAuditLogsParams['minSeverity'],
     userId: valuesOf('userId'),
-    userEmail: valuesOf('userEmail'),
     targetUserId: valuesOf('targetUserId'),
     organizationId: valuesOf('organizationId'),
     clientIp: valuesOf('clientIp'),

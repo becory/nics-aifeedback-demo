@@ -62,8 +62,6 @@ export const AUDIT_QUERY_EVENT_TYPE = "auditLogs.queried";
 
 export const AUDIT_PROPERTY_LABELS: Record<string, string> = {
   targetUserId: "對象使用者 ID",
-  targetEmail: "對象 Email",
-  attemptedEmail: "嘗試登入的 Email",
   organizationId: "組織 ID",
   organizationCode: "組織代碼",
   organizationIds: "組織 ID 清單",
