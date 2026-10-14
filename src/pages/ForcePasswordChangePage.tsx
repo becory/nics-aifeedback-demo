@@ -36,7 +36,7 @@ export function ForcePasswordChangePage() {
   };
 
   return (
-    <AuthLayout title="請變更密碼" description="您的密碼為管理者設定的預設密碼或已超過 90 天，請先設定新密碼">
+    <AuthLayout title="請變更密碼" description="為了帳號安全，請先設定新密碼">
       <form onSubmit={handleSubmit}>
         {error && <div className="cf-alert cf-alert--error">{error}</div>}
         <Input label="目前密碼" type="password" value={currentPassword}

@@ -52,10 +52,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const didInit = useRef(false);
+  const sessionRef = useRef<Session | null>(null);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   const refreshSession = useCallback(async () => {
     const refreshData = await postRefresh();
     setAccessToken(refreshData.data.accessToken, refreshData.data.expiresIn);
+    let userInfo;
+    try {
+      userInfo = await getUserInfo();
+    } catch (error) {
+      setAccessToken(null);
+      throw error;
+    }
     setSession((prev) =>
       prev
         ? { ...prev, accessToken: refreshData.data.accessToken }
@@ -65,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             accessToken: refreshData.data.accessToken,
           },
     );
-    const userInfo = await getUserInfo();
     setUser(userInfo.data);
   }, []);
 
@@ -91,11 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setRefreshHandler(refreshSession);
     setOnUnauthorized(() => {
+      // Only a session that was still signed in has "timed out"; after an explicit logout
+      // (or a password change), a late 401 must not replace the notice that logout set.
+      const wasSignedIn = !!sessionRef.current?.accessToken;
       setAccessToken(null);
       setSession(null);
       setUser(null);
-      // The server no longer accepts this session (refresh token expired or revoked).
-      setNotice("登入已逾時，系統已自動登出，請重新登入");
+      if (wasSignedIn) setNotice("登入已逾時，系統已自動登出，請重新登入");
     });
     return () => {
       setRefreshHandler(null);
@@ -132,12 +144,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const check2FA = await post2FA(session.pendingToken, code);
         setAccessToken(check2FA.data.accessToken, check2FA.data.expiresIn);
+        const userInfo = await getUserInfo();
         setSession((prev) =>
           prev ? { ...prev, accessToken: check2FA.data.accessToken } : prev,
         );
-        const userInfo = await getUserInfo();
         setUser(userInfo.data);
       } catch (error) {
+        setAccessToken(null);
         if (isLocked(error)) return ACCOUNT_LOCKED_MESSAGE;
         if (axios.isAxiosError(error)) {
           console.error(error.response);
@@ -158,12 +171,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const confirm2FA = await postConfirm2FA(session.pendingToken, code);
         setAccessToken(confirm2FA.data.accessToken, confirm2FA.data.expiresIn);
+        const userInfo = await getUserInfo();
         setSession((prev) =>
           prev ? { ...prev, accessToken: confirm2FA.data.accessToken } : prev,
         );
-        const userInfo = await getUserInfo();
         setUser(userInfo.data);
       } catch (error) {
+        setAccessToken(null);
         if (isLocked(error)) return ACCOUNT_LOCKED_MESSAGE;
         if (axios.isAxiosError(error)) {
           console.error(error.response);
