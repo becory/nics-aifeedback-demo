@@ -84,6 +84,11 @@ function sharedRefresh(handler: RefreshHandler): Promise<void> {
   return refreshPromise;
 }
 
+// For callers outside the request interceptor (the idle keep-alive): goes through the same
+// shared promise, so it never races an interceptor-triggered refresh of the single-use token.
+export const refreshNow = (): Promise<void> =>
+  refreshHandler ? sharedRefresh(refreshHandler) : Promise.resolve();
+
 // Refresh this long before expiry, so a request never goes out with a token about to lapse.
 // Only requests trigger it: an idle tab doesn't renew its session on its own.
 const EARLY_REFRESH_MS = 60_000;

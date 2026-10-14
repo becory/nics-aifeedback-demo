@@ -18,11 +18,13 @@ import {
   postRefresh,
 } from "../api/auth";
 import {
+  refreshNow,
   setAccessToken,
   setOnUnauthorized,
   setRefreshHandler,
 } from "../api/api";
 import axios from "axios";
+import { useIdleLogout } from "./idleLogout";
 
 interface AuthContextValue {
   ready: boolean;
@@ -92,6 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(null);
       setSession(null);
       setUser(null);
+      // The server no longer accepts this session (refresh token expired or revoked).
+      setNotice("登入已逾時，系統已自動登出，請重新登入");
     });
     return () => {
       setRefreshHandler(null);
@@ -180,6 +184,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setNotice(nextNotice ?? null);
   }, []);
+
+  const logoutForIdle = useCallback(() => logout("閒置超過 30 分鐘，系統已自動登出"), [logout]);
+  useIdleLogout(!!session?.accessToken, logoutForIdle, refreshNow);
 
   const value = useMemo(
     () => ({
