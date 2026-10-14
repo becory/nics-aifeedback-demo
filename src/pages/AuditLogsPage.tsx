@@ -63,7 +63,7 @@ export function AuditLogsPage() {
     let cancelled = false;
     // Dropdown sources are best-effort: without them the filters still work via email/IP and
     // the list falls back to raw ids.
-    Promise.allSettled([getUsers(), getOrganizations()]).then(([usersRes, orgsRes]) => {
+    Promise.allSettled([getUsers(true), getOrganizations()]).then(([usersRes, orgsRes]) => {
       if (cancelled) return;
       if (usersRes.status === "fulfilled") setUsers(usersRes.value.data.data);
       if (orgsRes.status === "fulfilled") setOrganizations(orgsRes.value.data.data);
@@ -174,7 +174,7 @@ export function AuditLogsPage() {
     return entry.resource || "—";
   };
 
-  const userOptions = users.map((u) => ({ value: u.id, label: `${u.name} (${u.email})` }));
+  const userOptions = users.map((u) => ({ value: u.id, label: u.isDeleted ? `${u.name}（已刪除）` : u.name }));
   const single = (field: AuditFilterField) => SINGLE_VALUE_AUDIT_FIELDS.includes(field);
   const fieldGroups: FilterFieldGroup<AuditFilterField>[] = [
     {

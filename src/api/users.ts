@@ -1,7 +1,8 @@
 import type { CreateUser, DataResponse, User } from '../types';
 import {instance} from './api';
 
-export const getUsers = () => instance.get<DataResponse<User[]>>('/users')
+export const getUsers = (includeDeleted = false) =>
+  instance.get<DataResponse<User[]>>('/users', { params: includeDeleted ? { includeDeleted: true } : undefined })
 
 export const getUserById = (userId: string) => instance.get<User>(`/users/${userId}`)
 
