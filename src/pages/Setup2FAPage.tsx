@@ -6,6 +6,8 @@ import { Button } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { getDefaultHomePath } from "../lib/routes";
 import { postEnable2FA } from "../api/auth";
+import { getApiErrorMessage } from "../api/api";
+import axios from "axios";
 
 export function Setup2FAPage() {
   const { user, setup2FA, session } = useAuth();
@@ -35,6 +37,12 @@ export function Setup2FAPage() {
         setUri(get2FAResponse.data.qrCodeUri);
       } catch (error) {
         console.error("Error enabling 2FA:", error);
+        if (axios.isAxiosError(error) && error.response?.status === 423) {
+          setError("帳號因連續驗證失敗已被鎖定，請 15 分鐘後再試");
+        } else {
+          const detail = getApiErrorMessage(error);
+          setError(`無法產生二階段驗證 QR Code${detail ? `：${detail}` : ""}`);
+        }
       }
     };
     initializeQRCode();
