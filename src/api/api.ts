@@ -52,9 +52,17 @@ export function serializeRepeatedParams(params: Record<string, unknown>): string
   return usp.toString();
 }
 
+// API errors are ProblemDetails (application/problem+json): the user-facing message is in
+// `detail`; ASP.NET's automatic model-validation errors carry field messages in `errors`.
 export function getApiErrorMessage(error: unknown): string | undefined {
-  if (axios.isAxiosError(error) && typeof error.response?.data === "string") {
-    return error.response.data;
+  if (!axios.isAxiosError(error)) return undefined;
+  const data: unknown = error.response?.data;
+  if (!data || typeof data !== "object") return undefined;
+  const problem = data as { detail?: unknown; errors?: Record<string, unknown> };
+  if (typeof problem.detail === "string" && problem.detail) return problem.detail;
+  if (problem.errors && typeof problem.errors === "object") {
+    const messages = Object.values(problem.errors).flat().filter((m): m is string => typeof m === "string");
+    if (messages.length > 0) return messages.join(" ");
   }
   return undefined;
 }
