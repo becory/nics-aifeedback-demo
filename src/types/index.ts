@@ -42,7 +42,6 @@ export interface User {
   isSystemAdmin: boolean
   twoFactorEnabled?: boolean
   mustChangePassword?: boolean
-  isDeleted?: boolean
 }
 
 export interface CreateUser extends User {
