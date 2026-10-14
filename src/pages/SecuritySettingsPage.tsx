@@ -114,8 +114,8 @@ export function SecuritySettingsPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               autoComplete="new-password"
+              hint={PASSWORD_RULE_HINT}
             />
-            <p className="-mt-2 text-xs text-slate-500">{PASSWORD_RULE_HINT}</p>
             <Input
               label="確認新密碼"
               type="password"

@@ -55,9 +55,11 @@ export function Button({ variant = 'primary', className = '', children, ...props
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string
   error?: string
+  /** Helper text under the input, inside the field so `.cf-field + .cf-field` spacing still applies. */
+  hint?: string
 }
 
-export function Input({ label, error, id, className = '', ...props }: InputProps) {
+export function Input({ label, error, hint, id, className = '', ...props }: InputProps) {
   const inputId = id ?? label
   return (
     <div className="cf-field">
@@ -69,6 +71,7 @@ export function Input({ label, error, id, className = '', ...props }: InputProps
         className={`cf-input ${error ? 'cf-input--error' : ''} ${className}`}
         {...props}
       />
+      {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
       {error && <p className="mt-1 text-xs text-[#b42318]">{error}</p>}
     </div>
   )
