@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import type { Feedback, FeedbackRating, Organization, Service } from '../types'
 import { formatDisplayTime } from '../lib/datetime'
 import { resolveOrganizationIdFromFeedbackWithServices } from '../lib/entityLookups'
+import { formatSourceLabel } from '../lib/feedbackFilters'
 
 type LogColumnKey =
   | 'createdAt'
@@ -14,6 +15,7 @@ type LogColumnKey =
   | 'sessionId'
   | 'feedbackComment'
   | 'device'
+  | 'source'
 
 const ALL_COLUMNS: { key: LogColumnKey; label: string; defaultVisible: boolean }[] = [
   { key: 'createdAt', label: '時間', defaultVisible: true },
@@ -22,6 +24,7 @@ const ALL_COLUMNS: { key: LogColumnKey; label: string; defaultVisible: boolean }
   { key: 'ipAddress', label: '來源 IP', defaultVisible: true },
   { key: 'originHost', label: '主機', defaultVisible: true },
   { key: 'serviceId', label: '服務', defaultVisible: true },
+  { key: 'source', label: '資料來源', defaultVisible: true },
   { key: 'userAgent', label: '使用者代理程式', defaultVisible: false },
   { key: 'device', label: '裝置', defaultVisible: false },
   { key: 'sessionId', label: 'Session ID', defaultVisible: false },
@@ -76,6 +79,8 @@ function cellValue(
       return ratingLabels[fb.feedbackRating] ?? fb.feedbackRating
     case 'serviceId':
       return formatServiceName(fb.serviceId, services)
+    case 'source':
+      return formatSourceLabel(fb.source)
     default:
       return String(fb[key] ?? '—')
   }
@@ -89,6 +94,7 @@ const DETAIL_FIELDS: { key: keyof Feedback; label: string }[] = [
   { key: 'ipCountry', label: '國家' },
   { key: 'ipAsn', label: 'ASN' },
   { key: 'device', label: '裝置' },
+  { key: 'source', label: '資料來源' },
   { key: 'userAgent', label: '使用者代理程式' },
   { key: 'feedbackRating', label: '評價' },
   { key: 'feedbackComment', label: '回饋評論' },
@@ -279,7 +285,9 @@ export function ActivityLogTable({
                                       ? formatDisplayTime(fb.createdAt)
                                       : key === 'serviceId'
                                         ? formatServiceName(fb.serviceId, services)
-                                        : String(fb[key] ?? '—')}
+                                        : key === 'source'
+                                          ? formatSourceLabel(fb.source)
+                                          : String(fb[key] ?? '—')}
                                 </dd>
                               </div>
                             ))}

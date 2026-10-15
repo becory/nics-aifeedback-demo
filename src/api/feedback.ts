@@ -16,6 +16,7 @@ export interface FeedbackFilterParams {
   originHost?: string | string[];
   userAgent?: string | string[];
   sessionId?: string | string[];
+  source?: string | string[];
   from?: string;
   to?: string;
 }

@@ -115,6 +115,8 @@ export interface Feedback {
   sessionId: string
   originHost: string
   device: string
+  /** "realtime" (live widget) or "offline" (file import). */
+  source: string
   durationSec?: number
 }
 

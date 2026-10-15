@@ -59,7 +59,7 @@ export function previousTimeRange(range: TimeRange, now = new Date()): TimeRange
 }
 
 export type ServiceConditionField = 'serviceName' | 'serviceCode' | 'serviceHost' | 'organization'
-export type FeedbackConditionField = 'feedbackRating' | 'device' | 'ipCountry' | 'sessionId'
+export type FeedbackConditionField = 'feedbackRating' | 'device' | 'ipCountry' | 'sessionId' | 'source'
 export type ConditionField = ServiceConditionField | FeedbackConditionField
 
 export const CONDITION_FIELD_GROUPS: {
@@ -82,9 +82,20 @@ export const CONDITION_FIELD_GROUPS: {
       { value: 'device', label: '裝置' },
       { value: 'ipCountry', label: '來源國家/地區' },
       { value: 'sessionId', label: 'Session ID' },
+      { value: 'source', label: '資料來源' },
     ],
   },
 ]
+
+/** Display labels for Feedback.source; an unlisted value is shown as-is. */
+export const SOURCE_LABELS: Record<string, string> = {
+  realtime: '即時',
+  offline: '離線匯入',
+}
+
+export function formatSourceLabel(source: string): string {
+  return SOURCE_LABELS[source] ?? (source || '—')
+}
 
 export const CONDITION_FIELD_LABELS = Object.fromEntries(
   CONDITION_FIELD_GROUPS.flatMap((g) => g.fields.map((f) => [f.value, f.label])),
@@ -157,6 +168,7 @@ export function buildFeedbackFilterParams(
     device: valuesOf('device'),
     ipCountry: valuesOf('ipCountry'),
     sessionId: valuesOf('sessionId'),
+    source: valuesOf('source'),
     from: range.from || undefined,
     to: range.to || undefined,
   }

@@ -1,5 +1,6 @@
 import {
   CONDITION_FIELD_GROUPS,
+  SOURCE_LABELS,
   TIME_PRESETS,
   type AppliedFeedbackFilters,
   type ConditionField,
@@ -23,7 +24,9 @@ export function FeedbackFilterBar({ value, ratingLabels, onChange }: FeedbackFil
     fields: g.fields.map((f) =>
       f.value === "feedbackRating"
         ? { ...f, options: RATING_VALUES.map((r) => ({ value: r, label: ratingLabels[r] })) }
-        : f,
+        : f.value === "source"
+          ? { ...f, options: Object.entries(SOURCE_LABELS).map(([value, label]) => ({ value, label })) }
+          : f,
     ),
   }));
 
