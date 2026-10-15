@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react'
 import type { Feedback, FeedbackRating, Organization, Service } from '../types'
 import { formatDisplayTime } from '../lib/datetime'
+import { resolveOrganizationIdFromFeedbackWithServices } from '../lib/entityLookups'
 
 type LogColumnKey =
   | 'createdAt'
@@ -56,7 +57,9 @@ function formatServiceName(serviceCode: string, services: Service[]): string {
   return services.find((s) => s.code === serviceCode)?.name ?? '未知'
 }
 
-function formatOrganizationName(organizationId: string, organizations: Organization[]): string {
+// Feedback rows carry no organization; it comes from the row's service.
+function formatOrganizationName(fb: Feedback, services: Service[], organizations: Organization[]): string {
+  const organizationId = resolveOrganizationIdFromFeedbackWithServices(fb, services)
   return organizations.find((o) => o.id === organizationId)?.name ?? '未知'
 }
 
@@ -283,7 +286,7 @@ export function ActivityLogTable({
                             <div className="min-w-0">
                               <dt className="text-[11px] font-medium text-[#8c8c8c]">組織</dt>
                               <dd className="truncate text-[13px] text-[#1d1d1d]">
-                                {formatOrganizationName(fb.organizationId, organizations)}
+                                {formatOrganizationName(fb, services, organizations)}
                               </dd>
                             </div>
                           </dl>
