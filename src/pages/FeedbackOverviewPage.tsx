@@ -427,7 +427,13 @@ export function FeedbackOverviewPage() {
       )}
 
       <div className="cf-panel">
-        <FeedbackFilterBar value={applied} ratingLabels={ratingLabels} onChange={apply} />
+        <FeedbackFilterBar
+          value={applied}
+          ratingLabels={ratingLabels}
+          services={services}
+          servicesLoading={!baseReady}
+          onChange={apply}
+        />
         <div className="cf-divider">{renderContent()}</div>
       </div>
     </div>

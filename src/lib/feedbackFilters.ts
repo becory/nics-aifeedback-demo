@@ -58,7 +58,9 @@ export function previousTimeRange(range: TimeRange, now = new Date()): TimeRange
   }
 }
 
-export type ServiceConditionField = 'serviceName' | 'serviceCode' | 'serviceHost' | 'organization'
+// service / organization are picked from dropdowns (value = service code / organization id);
+// serviceHost is a keyword.
+export type ServiceConditionField = 'service' | 'organization' | 'serviceHost'
 export type FeedbackConditionField = 'feedbackRating' | 'device' | 'ipCountry' | 'sessionId' | 'source'
 export type ConditionField = ServiceConditionField | FeedbackConditionField
 
@@ -69,10 +71,9 @@ export const CONDITION_FIELD_GROUPS: {
   {
     label: '服務',
     fields: [
-      { value: 'serviceName', label: '服務名稱' },
-      { value: 'serviceCode', label: '服務代碼' },
-      { value: 'serviceHost', label: '網域' },
+      { value: 'service', label: '服務' },
       { value: 'organization', label: '組織' },
+      { value: 'serviceHost', label: '網域' },
     ],
   },
   {
@@ -101,53 +102,44 @@ export const CONDITION_FIELD_LABELS = Object.fromEntries(
   CONDITION_FIELD_GROUPS.flatMap((g) => g.fields.map((f) => [f.value, f.label])),
 ) as Record<ConditionField, string>
 
-const SERVICE_FIELDS: ServiceConditionField[] = ['serviceName', 'serviceCode', 'serviceHost', 'organization']
-
-export function isServiceField(field: ConditionField): field is ServiceConditionField {
-  return (SERVICE_FIELDS as ConditionField[]).includes(field)
-}
-
 export type FilterCondition = Condition<ConditionField>
 
 export { addCondition, conditionKey }
 
-function serviceFieldValues(service: Service, field: ServiceConditionField): string[] {
-  switch (field) {
-    case 'serviceName':
-      return [service.name]
-    case 'serviceCode':
-      return [service.code]
-    case 'serviceHost':
-      return [service.host]
-    case 'organization':
-      return [service.organizationName]
-  }
+/** 服務 dropdown options: every visible service, as "名稱 (代碼)". */
+export function serviceOptions(services: Service[]): { value: string; label: string }[] {
+  return services
+    .map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'zh-Hant'))
+}
+
+/** 組織 dropdown options: the organizations of the visible services (no feedback elsewhere). */
+export function organizationOptions(services: Service[]): { value: string; label: string }[] {
+  const nameById = new Map(services.map((s) => [s.organizationId, s.organizationName]))
+  return [...nameById]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'zh-Hant'))
 }
 
 /**
- * Service conditions narrow each other (intersection): each keeps the services whose field
- * contains its keyword (case-insensitive). Returns undefined when there are no service
- * conditions (= every visible service), or the matching codes (possibly empty).
+ * The service codes to query, or undefined when no 服務/網域 condition narrows them (= every
+ * visible service). Picked services are OR'd; 網域 keywords then each keep the services whose
+ * host contains them (case-insensitive). May be empty: nothing matches.
  */
 export function resolveServiceCodes(conditions: FilterCondition[], services: Service[]): string[] | undefined {
-  const serviceConditions = conditions.filter((c) => isServiceField(c.field))
-  if (serviceConditions.length === 0) return undefined
+  const picked = conditions.filter((c) => c.field === 'service').map((c) => c.value)
+  const hostKeywords = conditions.filter((c) => c.field === 'serviceHost').map((c) => c.value.toLowerCase())
+  if (picked.length === 0 && hostKeywords.length === 0) return undefined
   return services
-    .filter((service) =>
-      serviceConditions.every((c) => {
-        const keyword = c.value.toLowerCase()
-        return serviceFieldValues(service, c.field as ServiceConditionField).some((v) =>
-          (v ?? '').toLowerCase().includes(keyword),
-        )
-      }),
-    )
+    .filter((s) => picked.length === 0 || picked.includes(s.code))
+    .filter((s) => hostKeywords.every((k) => s.host.toLowerCase().includes(k)))
     .map((s) => s.code)
 }
 
 /**
- * Builds the backend filter params. Feedback-field conditions: same field OR'd (repeated key),
- * different fields AND'd — the backend's own semantics. Returns null when the service
- * conditions match no service, so the caller can skip the requests.
+ * Builds the backend filter params. Same field OR'd (repeated key), different fields AND'd —
+ * the backend's own semantics; 組織 goes to the backend as organizationId. Returns null when
+ * the 服務/網域 conditions match no service, so the caller can skip the requests.
  */
 export function buildFeedbackFilterParams(
   conditions: FilterCondition[],
@@ -157,12 +149,13 @@ export function buildFeedbackFilterParams(
   const serviceCodes = resolveServiceCodes(conditions, services)
   if (serviceCodes && serviceCodes.length === 0) return null
 
-  const valuesOf = (field: FeedbackConditionField) => {
+  const valuesOf = (field: ConditionField) => {
     const values = conditions.filter((c) => c.field === field).map((c) => c.value)
     return values.length ? values : undefined
   }
 
   return {
+    organizationId: valuesOf('organization'),
     serviceId: serviceCodes,
     feedbackRating: valuesOf('feedbackRating'),
     device: valuesOf('device'),

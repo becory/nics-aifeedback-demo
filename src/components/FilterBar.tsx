@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { addCondition, conditionKey, type Condition, type TimeSelectionOf } from "../lib/filterConditions";
 import { containsFocus } from "../lib/popoverFocus";
+import { Combobox } from "./Combobox";
 import { DateTimeInput, type DateTimeInputHandle } from "./DateTimeInput";
 import { FieldSpinner } from "./ui";
 
@@ -19,6 +20,8 @@ export interface FilterFieldDef<F extends string> {
   placeholder?: string;
   /** Only one condition of this field at a time; adding another replaces it. */
   single?: boolean;
+  /** With options: pick from a type-to-filter list (for long lists) instead of a dropdown. */
+  searchable?: boolean;
 }
 
 export interface FilterFieldGroup<F extends string> {
@@ -157,9 +160,9 @@ export function FilterBar<P extends string, F extends string>({
     setKeyword("");
   };
 
-  const commitEditor = () => {
+  const commitEditor = (value = keyword) => {
     if (!field) return closeEditor();
-    const next = addCondition(conditions, { field, value: keyword }, fieldDef(field)?.single);
+    const next = addCondition(conditions, { field, value }, fieldDef(field)?.single);
     closeEditor();
     if (next !== conditions) onChange({ time, conditions: next });
   };
@@ -321,7 +324,17 @@ export function FilterBar<P extends string, F extends string>({
                   </optgroup>
                 ))}
               </select>
-              {currentDef?.options ? (
+              {currentDef?.options && currentDef.searchable ? (
+                <Combobox
+                  key={currentDef.value}
+                  inputRef={keywordRef as React.RefObject<HTMLInputElement>}
+                  options={currentDef.options}
+                  label={currentDef.label}
+                  loading={currentDef.loading}
+                  placeholder={currentDef.placeholder}
+                  onSelect={(v) => commitEditor(v)}
+                />
+              ) : currentDef?.options ? (
                 <span className="inline-flex items-center">
                   <select
                     ref={keywordRef as React.RefObject<HTMLSelectElement>}
