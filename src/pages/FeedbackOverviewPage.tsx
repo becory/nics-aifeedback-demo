@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { Feedback, FeedbackRating, Organization, ScoreConfig, Service } from "../types";
+import type { Feedback, FeedbackRating, ScoreConfig, Service } from "../types";
 import {
   getFeedbackOverview,
   getFeedbackServiceRatings,
   getFeedbackTopColumns,
   getFeedbacks,
-  getOrganizations,
   getScoreConfigs,
   getServices,
   type FeedbackOverview,
@@ -101,7 +100,6 @@ function MoreServicesNote({ total }: { total: number }) {
 }
 
 export function FeedbackOverviewPage() {
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [scoreConfigs, setScoreConfigs] = useState<ScoreConfig[]>([]);
   const [baseReady, setBaseReady] = useState(false);
@@ -129,12 +127,10 @@ export function FeedbackOverviewPage() {
 
   useEffect(() => {
     Promise.all([
-      getOrganizations({ currentUser: true }),
       getServices({ currentUser: true }),
       getScoreConfigs(),
     ])
-      .then(([orgs, svcs, scores]) => {
-        setOrganizations(orgs.data.data);
+      .then(([svcs, scores]) => {
         setServices(svcs.data.data);
         setScoreConfigs(scores.data.data);
       })
@@ -407,8 +403,6 @@ export function FeedbackOverviewPage() {
             loading={activityLoading}
             error={activityError}
             onPageChange={changeActivityPage}
-            services={services}
-            organizations={organizations}
             ratingLabels={ratingLabels}
           />
         </div>

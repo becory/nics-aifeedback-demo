@@ -1,7 +1,6 @@
 import { Fragment, useState } from 'react'
-import type { Feedback, FeedbackRating, Organization, Service } from '../types'
+import type { Feedback, FeedbackRating } from '../types'
 import { formatDisplayTime } from '../lib/datetime'
-import { resolveOrganizationIdFromFeedbackWithServices } from '../lib/entityLookups'
 import { formatSourceLabel } from '../lib/feedbackFilters'
 
 type LogColumnKey =
@@ -56,20 +55,9 @@ function rowKey(fb: Feedback): string {
   return `${fb.sessionId}-${fb.createdAt}`
 }
 
-function formatServiceName(serviceCode: string, services: Service[]): string {
-  return services.find((s) => s.code === serviceCode)?.name ?? '未知'
-}
-
-// Feedback rows carry no organization; it comes from the row's service.
-function formatOrganizationName(fb: Feedback, services: Service[], organizations: Organization[]): string {
-  const organizationId = resolveOrganizationIdFromFeedbackWithServices(fb, services)
-  return organizations.find((o) => o.id === organizationId)?.name ?? '未知'
-}
-
 function cellValue(
   fb: Feedback,
   key: LogColumnKey,
-  services: Service[],
   ratingLabels: Record<FeedbackRating, string>,
 ): string {
   switch (key) {
@@ -78,7 +66,7 @@ function cellValue(
     case 'feedbackRating':
       return ratingLabels[fb.feedbackRating] ?? fb.feedbackRating
     case 'serviceId':
-      return formatServiceName(fb.serviceId, services)
+      return fb.serviceName || '未知'
     case 'source':
       return formatSourceLabel(fb.source)
     default:
@@ -130,8 +118,6 @@ export function ActivityLogTable({
   loading = false,
   error,
   onPageChange,
-  services,
-  organizations,
   ratingLabels,
 }: {
   feedbacks: Feedback[]
@@ -142,8 +128,6 @@ export function ActivityLogTable({
   loading?: boolean
   error?: string
   onPageChange: (page: number) => void
-  services: Service[]
-  organizations: Organization[]
   ratingLabels: Record<FeedbackRating, string>
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -264,8 +248,8 @@ export function ActivityLogTable({
                           ) : col.key === 'ipCountry' ? (
                             <span className="text-[13px] text-[#1d1d1d]">{fb.ipCountry || '—'}</span>
                           ) : (
-                            <span title={cellValue(fb, col.key, services, ratingLabels)}>
-                              {cellValue(fb, col.key, services, ratingLabels)}
+                            <span title={cellValue(fb, col.key, ratingLabels)}>
+                              {cellValue(fb, col.key, ratingLabels)}
                             </span>
                           )}
                         </td>
@@ -284,7 +268,7 @@ export function ActivityLogTable({
                                     : key === 'createdAt'
                                       ? formatDisplayTime(fb.createdAt)
                                       : key === 'serviceId'
-                                        ? formatServiceName(fb.serviceId, services)
+                                        ? fb.serviceName || '未知'
                                         : key === 'source'
                                           ? formatSourceLabel(fb.source)
                                           : String(fb[key] ?? '—')}
@@ -294,7 +278,7 @@ export function ActivityLogTable({
                             <div className="min-w-0">
                               <dt className="text-[11px] font-medium text-[#8c8c8c]">組織</dt>
                               <dd className="truncate text-[13px] text-[#1d1d1d]">
-                                {formatOrganizationName(fb, services, organizations)}
+                                {fb.organizationName || '未知'}
                               </dd>
                             </div>
                           </dl>
