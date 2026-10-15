@@ -101,8 +101,11 @@ export type RatingScoresConfig = Record<FeedbackRating, RatingScoreSetting>
 
 export interface Feedback {
   id: string
+  /** organizationId and both names are resolved by the API from the row's service. */
   organizationId: string
+  organizationName: string
   serviceId: string
+  serviceName: string
   ipAsn: string
   ipCountry: string
   ipAddress: string
@@ -115,6 +118,8 @@ export interface Feedback {
   sessionId: string
   originHost: string
   device: string
+  /** "realtime" (live widget) or "offline" (file import). */
+  source: string
   durationSec?: number
 }
 
