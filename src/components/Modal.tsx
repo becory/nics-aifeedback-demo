@@ -42,7 +42,8 @@ export function Modal({ open, title, onClose, children, wide, fillHeight }: Moda
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[#1d1d1d]/40" onClick={onClose} />
+      {/* Purely visual: clicking it is a mouse shortcut for 關閉 / Esc, so screen readers skip it. */}
+      <div className="absolute inset-0 bg-[#1d1d1d]/40" aria-hidden="true" onClick={onClose} />
       <div
         // The box never scrolls itself; only the body below the title does, vertically.
         className={`relative flex max-h-[90vh] w-full flex-col overflow-hidden border border-[#d9d9d9] bg-white shadow-lg ${

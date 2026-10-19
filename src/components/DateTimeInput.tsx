@@ -224,6 +224,9 @@ export function DateTimeInput({
   return (
     <span
       ref={wrapperRef}
+      // Not a control itself: it only catches events bubbling up from the field and its picker
+      // (focus leaving the whole group, Esc), so assistive tech should ignore it.
+      role="presentation"
       className={`relative inline-flex items-center ${className}`}
       onBlur={(e) => {
         if (containsFocus(wrapperRef.current, e.relatedTarget as Node | null)) return
