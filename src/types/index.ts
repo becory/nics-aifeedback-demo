@@ -179,7 +179,7 @@ export interface ImportLog {
   keyId?: string | null
   /** Resolved at read time, so it follows later edits of the key's description. */
   keyDescription?: string | null
-  fileMd5: string
+  fileSha256: string
   status: ImportLogStatus
   requestedByUserId: string
   requestedByEmail?: string | null

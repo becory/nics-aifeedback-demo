@@ -443,7 +443,7 @@ export function ImportPage() {
                                 </div>
                               )}
                               <p className="mt-3 text-xs text-slate-400">
-                                檔案 MD5：<span className="font-mono">{expandedDetail.fileMd5}</span>
+                                檔案 SHA-256：<span className="font-mono break-all">{expandedDetail.fileSha256}</span>
                               </p>
                             </>
                           ) : null}
