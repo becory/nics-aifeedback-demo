@@ -116,7 +116,7 @@ export function ImportPage() {
   };
 
   useEffect(() => {
-    refreshLogs(organizationId);
+    void refreshLogs(organizationId);
     setExpandedId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId]);
@@ -142,7 +142,7 @@ export function ImportPage() {
       const response = await importOrganizationData(organizationId, envelope);
       setUploadResult(response.data);
       setFile(null);
-      refreshLogs(organizationId);
+      void refreshLogs(organizationId);
     } catch (error) {
       if (error instanceof SyntaxError) {
         setUploadError("檔案不是有效的 JSON 格式");

@@ -105,7 +105,7 @@ instance.interceptors.request.use(async (config) => {
   // Auth calls skip this: the refresh itself calls /auth/me, which would wait on its own refresh.
   if (!isAuthPath(config.url)) {
     const handler = refreshHandler;
-    if (!refreshPromise && handler && tokenExpiringSoon()) sharedRefresh(handler);
+    if (!refreshPromise && handler && tokenExpiringSoon()) void sharedRefresh(handler);
     // Also covers a refresh started by another request's 401: without waiting, this request
     // would carry the old token and come back 401 after the refresh finished.
     if (refreshPromise) {

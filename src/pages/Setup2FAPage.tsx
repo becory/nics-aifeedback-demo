@@ -45,7 +45,7 @@ export function Setup2FAPage() {
         }
       }
     };
-    initializeQRCode();
+    void initializeQRCode();
   }, [session?.pendingToken]);
 
   const handleSubmit = async (e: FormEvent) => {

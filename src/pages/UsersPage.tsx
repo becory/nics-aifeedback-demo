@@ -63,7 +63,7 @@ export function UsersPage() {
   };
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   const getOrgNames = (ids: string[]) =>
@@ -158,7 +158,7 @@ export function UsersPage() {
       return;
     }
 
-    refresh();
+    void refresh();
     setModalOpen(false);
   };
 
@@ -204,7 +204,7 @@ export function UsersPage() {
       return;
     }
 
-    refresh();
+    void refresh();
   };
 
   const handleDelete = async (user: User) => {
@@ -223,7 +223,7 @@ export function UsersPage() {
       return;
     }
 
-    refresh();
+    void refresh();
   };
 
   const orgOptions = organizations.map((o) => ({
@@ -415,7 +415,7 @@ export function UsersPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    handleReset2FA(editing);
+                    void handleReset2FA(editing);
                     setModalOpen(false);
                   }}
                   className="mt-2 ml-4 text-sm text-amber-600 hover:text-amber-800"
