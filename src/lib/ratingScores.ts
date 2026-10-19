@@ -20,12 +20,6 @@ export const DEFAULT_RATING_SCORES: RatingScoresConfig = {
 
 export const RATING_KEYS: FeedbackRating[] = ['good', 'normal', 'bad']
 
-export const RATING_KEY_LABELS: Record<FeedbackRating, string> = {
-  good: 'good',
-  normal: 'normal',
-  bad: 'bad',
-}
-
 export function getScoreMap(config: RatingScoresConfig): Record<FeedbackRating, number> {
   return {
     good: config.good.score,
