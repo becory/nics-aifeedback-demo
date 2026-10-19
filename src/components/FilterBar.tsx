@@ -191,6 +191,8 @@ export function FilterBar<P extends string, F extends string>({
               <span key={p.key} className="relative inline-flex">
                 <div
                   ref={customRef}
+                  // Not a control itself: only catches focus leaving the start/end pair.
+                  role="presentation"
                   className="inline-flex h-8 items-stretch overflow-hidden rounded border border-[#0055dc] bg-white"
                   onBlur={(e) => {
                     if (!containsFocus(customRef.current, e.relatedTarget as Node | null)) {
@@ -289,6 +291,9 @@ export function FilterBar<P extends string, F extends string>({
           {editing ? (
             <div
               ref={editorRef}
+              // Not a control itself: only catches events bubbling up from the field and value
+              // controls inside (focus leaving the pair, Enter, Esc).
+              role="presentation"
               className="inline-flex h-8 items-stretch overflow-hidden rounded border border-[#0055dc] bg-white"
               // Commit once focus leaves the whole [field | value] pair, not when it moves
               // between the two halves.
