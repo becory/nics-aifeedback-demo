@@ -16,5 +16,3 @@ export const createService = (service: CreateServiceRequest) => instance.post<Se
 export const updateService = (id: string, service: UpdateServiceRequest) => instance.put<Service>(`/services/${id}`, service)
 
 export const deleteService = (id: string) => instance.delete<null>(`/services/${id}`)
-
-export const restoreService = (id: string) => instance.post<Service>(`/services/${id}/restore`)

@@ -10,7 +10,8 @@ import { Button, Input, LoadingState, PageHeader } from "../components/ui";
 interface ScoreForm {
   name: string;
   description: string;
-  scoreValue: number;
+  /** As typed: converting on every keystroke turned a cleared field into 0, so typing 60 showed 060. */
+  scoreValue: string;
 }
 
 export function ScoresPage() {
@@ -20,7 +21,7 @@ export function ScoresPage() {
   const [form, setForm] = useState<ScoreForm>({
     name: "",
     description: "",
-    scoreValue: 0,
+    scoreValue: "",
   });
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
@@ -49,7 +50,7 @@ export function ScoresPage() {
     setForm({
       name: current.name,
       description: current.description,
-      scoreValue: current.scoreValue,
+      scoreValue: String(current.scoreValue),
     });
     setError("");
     setModalOpen(true);
@@ -68,11 +69,12 @@ export function ScoresPage() {
       setError("請輸入中文說明");
       return;
     }
-    if (
-      !Number.isFinite(form.scoreValue) ||
-      form.scoreValue < 0 ||
-      form.scoreValue > 100
-    ) {
+    if (!form.scoreValue.trim()) {
+      setError("請輸入分數");
+      return;
+    }
+    const scoreValue = Number(form.scoreValue);
+    if (!Number.isFinite(scoreValue) || scoreValue < 0 || scoreValue > 100) {
       setError("分數須為 0～100 的數字");
       return;
     }
@@ -81,7 +83,7 @@ export function ScoresPage() {
       await updateScoreConfig(current.id, {
         name: form.name.trim(),
         description: form.description.trim(),
-        scoreValue: form.scoreValue,
+        scoreValue,
       });
     } catch (error) {
       const detail = getApiErrorMessage(error);
@@ -189,10 +191,12 @@ export function ScoresPage() {
             min={0}
             max={100}
             value={form.scoreValue}
+            // Selected on focus: typing replaces the current score, a stray click keeps it.
+            onFocus={(e) => e.target.select()}
             onChange={(e) =>
               setForm((prev) => ({
                 ...prev,
-                scoreValue: Number(e.target.value),
+                scoreValue: e.target.value,
               }))
             }
           />

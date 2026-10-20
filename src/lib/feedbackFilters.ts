@@ -1,7 +1,7 @@
 import type { FeedbackFilterParams } from '../api/feedback'
 import type { Service } from '../types'
 import { toDatetimeLocal } from './feedbackStats'
-import { addCondition, conditionKey, type Condition, type TimeSelectionOf } from './filterConditions'
+import { addCondition, type Condition, type TimeSelectionOf } from './filterConditions'
 
 // Filter model for the feedback overview page (spec: docs/superpowers/specs/
 // 2026-09-29-feedback-overview-redesign-design.md). Pure functions only — no React.
@@ -98,13 +98,8 @@ export function formatSourceLabel(source: string): string {
   return SOURCE_LABELS[source] ?? (source || '—')
 }
 
-export const CONDITION_FIELD_LABELS = Object.fromEntries(
-  CONDITION_FIELD_GROUPS.flatMap((g) => g.fields.map((f) => [f.value, f.label])),
-) as Record<ConditionField, string>
-
 export type FilterCondition = Condition<ConditionField>
 
-export { addCondition, conditionKey }
 
 /** 服務 dropdown options: every visible service, as "名稱 (代碼)". */
 export function serviceOptions(services: Service[]): { value: string; label: string }[] {
@@ -171,11 +166,6 @@ export function buildFeedbackFilterParams(
 export interface AppliedFeedbackFilters {
   time: TimeSelection
   conditions: FilterCondition[]
-}
-
-export const DEFAULT_APPLIED_FILTERS: AppliedFeedbackFilters = {
-  time: DEFAULT_TIME_SELECTION,
-  conditions: [],
 }
 
 // ---- Query string (shareable links) ----------------------------------------------------------

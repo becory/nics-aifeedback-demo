@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, useRef } from "react";
 import axios from "axios";
 import type { ImportLog, ImportLogDetail, Organization } from "../types";
 import {
@@ -58,6 +58,10 @@ export function ImportPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadResult, setUploadResult] = useState<ImportLogDetail | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Only the latest log request may update the list: switching organizations quickly must not
+  // leave an earlier organization's logs on screen when its response arrives last.
+  const latestLogsRequest = useRef(0);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedDetail, setExpandedDetail] = useState<ImportLogDetail | null>(null);
@@ -92,6 +96,7 @@ export function ImportPage() {
   }, []);
 
   const refreshLogs = async (orgId: string) => {
+    const request = ++latestLogsRequest.current;
     if (!orgId) {
       setLogs([]);
       setLoading(false);
@@ -101,6 +106,7 @@ export function ImportPage() {
     setLoading(true);
     try {
       const res = await getImportLogs({ organizationId: orgId });
+      if (request !== latestLogsRequest.current) return;
       setLogs(
         [...res.data.data].sort(
           (a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime(),
@@ -108,16 +114,20 @@ export function ImportPage() {
       );
       setLoadError("");
     } catch (error) {
+      if (request !== latestLogsRequest.current) return;
       const detail = getApiErrorMessage(error);
       setLoadError(`載入匯入紀錄時發生錯誤${detail ? `：${detail}` : ""}`);
     } finally {
-      setLoading(false);
+      if (request === latestLogsRequest.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     void refreshLogs(organizationId);
     setExpandedId(null);
+    // The last upload's result or error belongs to the previous organization.
+    setUploadResult(null);
+    setUploadError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId]);
 
@@ -142,6 +152,8 @@ export function ImportPage() {
       const response = await importOrganizationData(organizationId, envelope);
       setUploadResult(response.data);
       setFile(null);
+      // Also clear the input itself: otherwise picking the same file again fires no change event.
+      if (fileInputRef.current) fileInputRef.current.value = "";
       void refreshLogs(organizationId);
     } catch (error) {
       if (error instanceof SyntaxError) {
@@ -195,6 +207,8 @@ export function ImportPage() {
             value={organizationId}
             onChange={(e) => setOrganizationId(e.target.value)}
             loading={orgsLoading}
+            // The import goes to this organization; switching mid-upload would mix up the result.
+            disabled={uploading}
             options={organizations.map((o) => ({
               value: o.id,
               label: `${o.name} (${o.code})`,
@@ -241,6 +255,7 @@ export function ImportPage() {
         <div className="flex flex-wrap items-center gap-3">
           <input
             id="import-file"
+            ref={fileInputRef}
             type="file"
             accept="application/json,.json"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}

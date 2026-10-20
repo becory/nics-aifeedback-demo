@@ -91,14 +91,6 @@ export interface UpdateScoreConfigRequest {
 
 export type FeedbackRating = 'good' | 'normal' | 'bad'
 
-export interface RatingScoreSetting {
-  score: number
-  labelZh: string
-  descriptionZh: string
-}
-
-export type RatingScoresConfig = Record<FeedbackRating, RatingScoreSetting>
-
 export interface Feedback {
   id: string
   /** organizationId and both names are resolved by the API from the row's service. */

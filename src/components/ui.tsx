@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useId } from 'react'
 
 interface PageHeaderProps {
   title: string
@@ -60,7 +60,9 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function Input({ label, error, hint, id, className = '', ...props }: InputProps) {
-  const inputId = id ?? label
+  // Not the label: two fields with the same label (e.g. 目前密碼) would share an id.
+  const generatedId = useId()
+  const inputId = id ?? generatedId
   return (
     <div className="cf-field">
       <label htmlFor={inputId} className="cf-label">
@@ -91,7 +93,8 @@ export function FieldSpinner({ className = '' }: { className?: string }) {
 }
 
 export function Select({ label, error, options, loading, id, className = '', disabled, ...props }: SelectProps) {
-  const selectId = id ?? label
+  const generatedId = useId()
+  const selectId = id ?? generatedId
   return (
     <div className="cf-field">
       <label htmlFor={selectId} className="cf-label">

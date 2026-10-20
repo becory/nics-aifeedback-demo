@@ -103,6 +103,10 @@ export function FeedbackOverviewPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [scoreConfigs, setScoreConfigs] = useState<ScoreConfig[]>([]);
   const [baseReady, setBaseReady] = useState(false);
+  // Services and score configs are needed to resolve filters and name ratings, so without them
+  // no feedback is loaded. Kept apart from loadError so a feedback load can't clear it.
+  const [baseError, setBaseError] = useState("");
+  const [baseLoadKey, setBaseLoadKey] = useState(0);
 
   // Filters and the activity log page live in the query string, so a copied URL reopens the
   // same view. Read once on mount; every change below writes it back.
@@ -126,21 +130,30 @@ export function FeedbackOverviewPage() {
   const [activityError, setActivityError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     Promise.all([
       getServices({ currentUser: true }),
       getScoreConfigs(),
     ])
       .then(([svcs, scores]) => {
+        if (cancelled) return;
         setServices(svcs.data.data);
         setScoreConfigs(scores.data.data);
+        setBaseReady(true);
       })
       .catch((error) => {
+        if (cancelled) return;
         const detail = getApiErrorMessage(error);
-        setLoadError(`載入服務資料時發生錯誤${detail ? `：${detail}` : ""}`);
+        setBaseError(`載入服務資料時發生錯誤${detail ? `：${detail}` : ""}`);
         setLoading(false);
-      })
-      .finally(() => setBaseReady(true));
-  }, []);
+        setActivityLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [baseLoadKey]);
 
   // null = the service conditions match no service: nothing to query.
   const filterParams = useMemo(
@@ -225,7 +238,7 @@ export function FeedbackOverviewPage() {
     setActivityPage(1);
     setSearchParams(filtersToSearchParams(next, 1), { replace: true });
     setReloadKey((k) => k + 1);
-    if (buildFeedbackFilterParams(next.conditions, services, range)) {
+    if (baseReady && buildFeedbackFilterParams(next.conditions, services, range)) {
       setLoading(true);
       setActivityLoading(true);
     }
@@ -234,7 +247,13 @@ export function FeedbackOverviewPage() {
   const retry = () => {
     setLoading(true);
     setActivityLoading(true);
-    setReloadKey((k) => k + 1);
+    if (baseError) {
+      // The feedback loads follow once baseReady turns true.
+      setBaseError("");
+      setBaseLoadKey((k) => k + 1);
+    } else {
+      setReloadKey((k) => k + 1);
+    }
   };
 
   const changeActivityPage = (nextPage: number) => {
@@ -266,6 +285,7 @@ export function FeedbackOverviewPage() {
       : TIME_PRESETS.find((p) => p.key === applied.time.preset)?.label;
 
   const renderContent = () => {
+    if (baseError) return null;
     if (!filterParams) return <EmptyState message="沒有符合篩選條件的服務" />;
     if (loading) return <LoadingState />;
     if (!data) return null;
@@ -416,9 +436,9 @@ export function FeedbackOverviewPage() {
         description="檢視平均分數、評價分佈、回饋來源與活動記錄"
       />
 
-      {loadError && (
+      {(baseError || loadError) && (
         <div className="cf-alert cf-alert--error mb-4 flex items-center justify-between gap-4">
-          <span>{loadError}</span>
+          <span>{baseError || loadError}</span>
           <button type="button" onClick={retry} className="cf-link shrink-0">
             重試
           </button>

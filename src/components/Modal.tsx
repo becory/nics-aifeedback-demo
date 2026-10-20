@@ -1,8 +1,8 @@
-import { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactNode, useEffect, useId, useRef } from 'react'
 
-// Open modals, oldest first. Escape closes only the topmost one, so a modal opened from inside
+// Open modals, bottom first. Escape closes only the topmost one, so a modal opened from inside
 // another (e.g. the .env service picker over the key list) doesn't close both.
-const openStack: object[] = []
+const openStack: HTMLElement[] = []
 
 interface ModalProps {
   open: boolean
@@ -19,20 +19,31 @@ interface ModalProps {
 }
 
 export function Modal({ open, title, onClose, children, wide, fillHeight }: ModalProps) {
-  const token = useRef({})
+  const boxRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
   useEffect(() => {
-    if (!open) return
-    const self = token.current
-    openStack.push(self)
+    if (!open || !boxRef.current) return
+    const self = boxRef.current
+    // A child's effect runs before its parent's, so when an outer and an inner modal open in the
+    // same render the inner one is already here: go below any modal rendered inside this one.
+    const firstInside = openStack.findIndex((el) => self.contains(el))
+    openStack.splice(firstInside < 0 ? openStack.length : firstInside, 0, self)
+
+    // aria-modal hides the page behind from screen readers, so focus must be inside the dialog:
+    // move it to the box unless the content already focused one of its own fields, and give it
+    // back to whatever opened the dialog once it closes.
+    const opener = self.contains(document.activeElement) ? null : document.activeElement
+    if (opener) self.focus()
     return () => {
       openStack.splice(openStack.indexOf(self), 1)
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
     }
   }, [open])
 
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && openStack[openStack.length - 1] === token.current) onClose()
+      if (e.key === 'Escape' && openStack[openStack.length - 1] === boxRef.current) onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -45,14 +56,19 @@ export function Modal({ open, title, onClose, children, wide, fillHeight }: Moda
       {/* Purely visual: clicking it is a mouse shortcut for 關閉 / Esc, so screen readers skip it. */}
       <div className="absolute inset-0 bg-[#1d1d1d]/40" aria-hidden="true" onClick={onClose} />
       <div
+        ref={boxRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         // The box never scrolls itself; only the body below the title does, vertically.
-        className={`relative flex max-h-[90vh] w-full flex-col overflow-hidden border border-[#d9d9d9] bg-white shadow-lg ${
+        className={`relative flex max-h-[90vh] outline-none w-full flex-col overflow-hidden border border-[#d9d9d9] bg-white shadow-lg ${
           wide === 'xl' ? 'max-w-5xl' : wide ? 'max-w-2xl' : 'max-w-lg'
         }`}
         style={{ borderRadius: 4 }}
       >
         <div className="flex shrink-0 items-center justify-between px-6 pb-5 pt-6">
-          <h2 className="text-base font-semibold text-[#1d1d1d]">{title}</h2>
+          <h2 id={titleId} className="text-base font-semibold text-[#1d1d1d]">{title}</h2>
           <button
             type="button"
             onClick={onClose}

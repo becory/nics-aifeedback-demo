@@ -120,6 +120,8 @@ export function ServicesPage() {
   };
 
   const [savingOrg, guardSaveOrg] = useSubmitGuard();
+  // Deletes: one at a time, so a double-click sends one request.
+  const [, guardDelete] = useSubmitGuard();
   const handleSaveOrg = async () => {
     if (!orgName.trim()) {
       setOrgError("請輸入組織名稱");
@@ -278,7 +280,7 @@ export function ServicesPage() {
       {loading ? (
         <LoadingState />
       ) : organizations.length === 0 ? (
-        <EmptyState message="尚無組織資料，點擊「新增組織」開始建立" />
+        !loadError && <EmptyState message="尚無組織資料，點擊「新增組織」開始建立" />
       ) : (
         <div className="cf-card cf-page-fill__table">
           <OrganizationServiceTable
@@ -301,7 +303,7 @@ export function ServicesPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDeleteOrg(org)}
+                  onClick={() => guardDelete(() => handleDeleteOrg(org))}
                   className="text-red-600 hover:text-red-800"
                 >
                   刪除
@@ -328,7 +330,7 @@ export function ServicesPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDeleteService(svc)}
+                  onClick={() => guardDelete(() => handleDeleteService(svc))}
                   className="text-red-600 hover:text-red-800"
                 >
                   刪除
