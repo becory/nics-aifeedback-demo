@@ -544,6 +544,61 @@ describe('FeedbackOverviewPage: activity log and errors', () => {
     expect(screen.queryByText(/載入回饋資料時發生錯誤/)).not.toBeInTheDocument()
   })
 
+  const feedbackRequests = () =>
+    api.overview.mock.calls.length + api.topColumns.mock.calls.length +
+    api.serviceRatings.mock.calls.length + api.feedbacks.mock.calls.length
+
+  it.each([
+    ['services', () => api.services.mockRejectedValueOnce(apiError('服務查詢失敗'))],
+    ['score configs', () => api.scoreConfigs.mockRejectedValueOnce(apiError('服務查詢失敗'))],
+  ])('keeps the error and sends no feedback request when loading %s fails', async (_, fail) => {
+    mockBackend()
+    fail()
+    renderPage()
+
+    expect(await screen.findByText('載入服務資料時發生錯誤：服務查詢失敗')).toBeInTheDocument()
+    // Give any (wrong) follow-up feedback load time to finish and clear the error.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.getByText('載入服務資料時發生錯誤：服務查詢失敗')).toBeInTheDocument()
+    expect(feedbackRequests()).toBe(0)
+  })
+
+  it('does not report unmatched service conditions when the services failed to load', async () => {
+    mockBackend()
+    api.services.mockRejectedValueOnce(apiError('服務查詢失敗'))
+    renderPage('?service=svc-a')
+
+    expect(await screen.findByText('載入服務資料時發生錯誤：服務查詢失敗')).toBeInTheDocument()
+    expect(screen.queryByText('沒有符合篩選條件的服務')).not.toBeInTheDocument()
+  })
+
+  it('reloads services and score configs on 重試, then loads the feedback', async () => {
+    mockBackend()
+    api.scoreConfigs.mockRejectedValueOnce(apiError('服務查詢失敗'))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: '重試' }))
+
+    await loaded()
+    expect(api.services).toHaveBeenCalledTimes(2)
+    expect(api.scoreConfigs).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText(/載入服務資料時發生錯誤/)).not.toBeInTheDocument()
+    expect(api.overview).toHaveBeenCalled()
+  })
+
+  it('keeps the error when 重試 fails again', async () => {
+    mockBackend()
+    api.services.mockRejectedValueOnce(apiError('服務查詢失敗')).mockRejectedValueOnce(apiError('仍然失敗'))
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: '重試' }))
+
+    expect(await screen.findByText('載入服務資料時發生錯誤：仍然失敗')).toBeInTheDocument()
+    expect(feedbackRequests()).toBe(0)
+  })
+
   it('shows the activity log error separately from the charts', async () => {
     mockBackend()
     api.feedbacks.mockRejectedValue(apiError('逾時'))
