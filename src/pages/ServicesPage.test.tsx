@@ -84,12 +84,12 @@ function LocationProbe() {
   return <div data-testid="search">{search}</div>
 }
 
-async function renderPage(path = '/organizations') {
+async function renderPage(path = '/services') {
   const user = userEvent.setup()
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/organizations" element={<><ServicesPage /><LocationProbe /></>} />
+        <Route path="/services" element={<><ServicesPage /><LocationProbe /></>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -385,7 +385,7 @@ describe('ServicesPage services', () => {
 
 describe('ServicesPage ?code= deep link', () => {
   it('expands the organization of that service and shows only the matching service', async () => {
-    await renderPage('/organizations?code=chatbot')
+    await renderPage('/services?code=chatbot')
     expect(getServices).toHaveBeenCalledWith({ code: 'chatbot' })
     expect(await screen.findByText('客服機器人')).toBeInTheDocument()
     expect(screen.queryByText('入口網')).not.toBeInTheDocument()
@@ -395,7 +395,7 @@ describe('ServicesPage ?code= deep link', () => {
   })
 
   it('clears the filter: all services shown and the query removed from the URL', async () => {
-    const user = await renderPage('/organizations?code=chatbot')
+    const user = await renderPage('/services?code=chatbot')
     await screen.findByText('客服機器人')
     await user.click(screen.getByRole('button', { name: '清除服務代碼篩選' }))
     expect(screen.getByText('入口網')).toBeInTheDocument()

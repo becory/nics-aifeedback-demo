@@ -118,12 +118,15 @@ const feedbackRow = (over: Partial<Feedback> = {}): Feedback => ({
   ...over,
 } as Feedback)
 
+/** The previous-period request ends where a current-period request starts. */
+const isPreviousPeriod = (params: { to?: string } | undefined) =>
+  !!params?.to && api.overview.mock.calls.some(([other]) => other?.from === params.to)
+
 /** Default backend: current period avg 80, previous 75.5. */
 function mockBackend({ current = overview(), previous = overview({ averageScore: 75.5 }) } = {}) {
   api.services.mockReturnValue(respond({ data: services }) as never)
   api.scoreConfigs.mockReturnValue(respond({ data: scoreConfigs }) as never)
-  // Requests go out as [current, previous] pairs.
-  api.overview.mockImplementation(() => respond(api.overview.mock.calls.length % 2 === 1 ? current : previous) as never)
+  api.overview.mockImplementation((params) => respond(isPreviousPeriod(params) ? previous : current) as never)
   api.topColumns.mockImplementation((params) => respond(params?.groupBy === 'rate' ? ratingColumns : deviceColumns) as never)
   api.serviceRatings.mockReturnValue(respond({ data: serviceRatings }) as never)
   api.feedbacks.mockReturnValue(respond({ data: [feedbackRow()] }) as never)
@@ -146,12 +149,8 @@ function renderPage(search = '') {
 const loaded = () => screen.findByText('總平均分數')
 const currentLocation = () => screen.getByRole('status', { name: 'location' }).textContent
 
-/** The first (= current period) overview request's params. */
-const lastCurrentParams = () => {
-  const calls = api.overview.mock.calls
-  // Requests go out as [current, previous] pairs; the current one is first in each pair.
-  return calls[calls.length - 2][0]
-}
+/** The latest current-period overview request's params. */
+const lastCurrentParams = () => api.overview.mock.calls.map(([params]) => params).findLast((params) => !isPreviousPeriod(params))
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })

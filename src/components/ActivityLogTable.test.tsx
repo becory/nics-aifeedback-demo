@@ -76,7 +76,7 @@ describe('ActivityLogTable rows', () => {
     ])
   })
 
-  it('falls back for a missing service name, country and an unknown source', () => {
+  it('falls back for a missing service name and country, and labels an offline source', () => {
     renderTable({
       feedbacks: [feedback({ serviceName: '', ipCountry: '', source: 'offline', feedbackRating: 'bad' })],
     })

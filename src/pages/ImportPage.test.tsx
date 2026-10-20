@@ -70,7 +70,7 @@ const fileInput = (container: HTMLElement) => container.querySelector<HTMLInputE
 const uploadButton = () => screen.getByRole('button', { name: '上傳並匯入' })
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   mockedGetOrganizations.mockImplementation(() => ok({ data: [orgA, orgB] }))
   mockedGetImportLogs.mockImplementation(() => ok({ data: [] }))
 })

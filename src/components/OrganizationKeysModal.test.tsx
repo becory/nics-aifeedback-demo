@@ -119,7 +119,11 @@ beforeEach(() => {
   vi.stubGlobal('alert', alertMock)
 })
 
+const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+
 afterEach(() => {
+  if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard)
+  else delete (navigator as { clipboard?: unknown }).clipboard
   vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
