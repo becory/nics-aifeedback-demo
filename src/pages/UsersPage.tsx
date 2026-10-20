@@ -252,7 +252,7 @@ export function UsersPage() {
       {loading ? (
         <LoadingState />
       ) : items.length === 0 ? (
-        <EmptyState message="尚無使用者資料" />
+        !loadError && <EmptyState message="尚無使用者資料" />
       ) : (
         <div className="cf-card cf-page-fill__table">
           <div className="cf-table-scroll cf-table-scroll--sticky-head">

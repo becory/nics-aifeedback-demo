@@ -129,6 +129,7 @@ describe('ServicesPage organizations', () => {
     const user = userEvent.setup()
     render(<MemoryRouter><ServicesPage /></MemoryRouter>)
     expect(await screen.findByText('載入組織資料時發生錯誤：服務暫停')).toBeInTheDocument()
+    expect(screen.queryByText('尚無組織資料，點擊「新增組織」開始建立')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '重試' }))
     expect(await screen.findByText('資安院')).toBeInTheDocument()
     expect(screen.queryByText(/載入組織資料時發生錯誤/)).not.toBeInTheDocument()

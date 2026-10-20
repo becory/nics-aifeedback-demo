@@ -140,6 +140,7 @@ describe('UsersPage list', () => {
     const user = userEvent.setup()
     render(<UsersPage />)
     expect(await screen.findByText('載入使用者資料時發生錯誤：伺服器忙碌')).toBeInTheDocument()
+    expect(screen.queryByText('尚無使用者資料')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '重試' }))
     expect(await screen.findByText('Alice')).toBeInTheDocument()

@@ -278,7 +278,7 @@ export function ServicesPage() {
       {loading ? (
         <LoadingState />
       ) : organizations.length === 0 ? (
-        <EmptyState message="尚無組織資料，點擊「新增組織」開始建立" />
+        !loadError && <EmptyState message="尚無組織資料，點擊「新增組織」開始建立" />
       ) : (
         <div className="cf-card cf-page-fill__table">
           <OrganizationServiceTable

@@ -48,7 +48,8 @@ export function ServiceListPage() {
       {loading ? (
         <LoadingState />
       ) : organizations.length === 0 ? (
-        <EmptyState message="您尚未被指派至任何組織，無法檢視服務" />
+        // A failed load is not "no organizations": the error above says what happened.
+        !loadError && <EmptyState message="您尚未被指派至任何組織，無法檢視服務" />
       ) : (
         <div className="cf-card cf-page-fill__table">
           <OrganizationServiceTable

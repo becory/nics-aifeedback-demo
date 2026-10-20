@@ -89,6 +89,8 @@ describe('ServiceListPage', () => {
     vi.mocked(getOrganizations).mockRejectedValue(apiError('沒有權限'))
     render(<ServiceListPage />)
     expect(await screen.findByText('載入組織資料時發生錯誤：沒有權限')).toBeInTheDocument()
+    // A failed load is not the same as having no organizations.
+    expect(screen.queryByText('您尚未被指派至任何組織，無法檢視服務')).not.toBeInTheDocument()
   })
 
   it('does not request anything before the user is known', () => {
