@@ -15,7 +15,3 @@ export const deleteUser = (userId: string) => instance.delete<null>(`/users/${us
 export const changeUserPassword = (userId: string, newPassword: string) => instance.post<User>(`/users/${userId}/change-password`, { NewPassword: newPassword })
 
 export const resetUser2FA = (userId: string) => instance.post<null>(`/users/${userId}/reset-2fa`)
-
-export const grantUserOrgAccess = (userId: string, orgId: string) => instance.post<null>(`/users/${userId}/org-access-grants`, { orgId })
-
-export const revokeUserOrgAccess = (userId: string, orgId: string) => instance.delete<null>(`/users/${userId}/org-access-grants/${orgId}`)
