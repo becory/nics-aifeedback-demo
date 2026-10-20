@@ -384,6 +384,24 @@ describe('FeedbackOverviewPage: time range', () => {
     expect(screen.getByRole('button', { name: '近 60 天' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('queries a custom range picked in the filter bar only when 查詢 is clicked', async () => {
+    mockBackend()
+    const user = userEvent.setup()
+    renderPage()
+    await loaded()
+    const before = api.overview.mock.calls.length
+
+    await user.click(screen.getByRole('button', { name: '自訂' }))
+    await user.keyboard('2026-10-01')
+    await user.click(screen.getByRole('textbox', { name: '結束日期' }))
+    await user.keyboard('2026-10-05')
+    expect(api.overview.mock.calls.length).toBe(before)
+
+    await user.click(screen.getByRole('button', { name: '查詢' }))
+    await waitFor(() => expect(lastCurrentParams()).toMatchObject({ from: '2026-10-01T00:00:00', to: '2026-10-05T23:59:59' }))
+    expect(currentLocation()).toBe('?range=custom&from=2026-10-01&to=2026-10-05')
+  })
+
   it('queries whole days for a custom range from the link', async () => {
     mockBackend()
     renderPage('?range=custom&from=2026-10-01&to=2026-10-05')

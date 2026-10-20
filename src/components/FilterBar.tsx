@@ -1,12 +1,11 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { addCondition, conditionKey, type Condition, type TimeSelectionOf } from "../lib/filterConditions";
-import { containsFocus } from "../lib/popoverFocus";
 import { Combobox } from "./Combobox";
 import { DateTimeInput, type DateTimeInputHandle } from "./DateTimeInput";
 import { FieldSpinner } from "./ui";
 
 // Generic two-row filter bar (feedback overview, audit logs):
-//   ⏲ 時間區間：[preset] [preset] … [自訂｜開始 - 結束]
+//   ⏲ 時間區間：[preset] [preset] … [自訂｜開始 - 結束] [查詢]
 //   ⏷ 篩選器：[欄位 | 值 ×] … [＋新增] / [欄位 ▾ | 值]          [extra] [× 清除]
 // Controlled: every change is reported through onChange and is meant to be queried right away.
 
@@ -93,11 +92,12 @@ export function FilterBar<P extends string, F extends string>({
   const fieldDef = (f: F) => fields.find((d) => d.value === f);
   const defaultField = fields[0]?.value;
 
-  // Custom range is edited locally and only applied once it is valid.
+  // Custom range is edited locally and only applied by 查詢 (or Enter), once it is valid.
   const [customFrom, setCustomFromState] = useState(time.customFrom);
   const [customTo, setCustomToState] = useState(time.customTo);
-  // Mirrors of the two ends, current within the same event: a typed date is applied by the
-  // field's own blur handler, which runs just before the group's blur handler reads the range.
+  // Mirrors of the two ends, current within the same event: a typed date is committed by the
+  // field's own blur / Enter handler, which runs just before 查詢's click or the group's Enter
+  // handler reads the range.
   const customFromRef = useRef(time.customFrom);
   const customToRef = useRef(time.customTo);
   const setCustomFrom = (v: string) => {
@@ -111,9 +111,11 @@ export function FilterBar<P extends string, F extends string>({
   const customEndRef = useRef<DateTimeInputHandle>(null);
   // 自訂 opens the date inputs without touching the applied range until it is valid.
   const [customOpen, setCustomOpen] = useState(time.preset === customKey);
+  // Focus the start (and open its calendar) only when the user picks 自訂, not when the page
+  // loads with a custom range from the URL.
+  const [focusCustomStart, setFocusCustomStart] = useState(false);
   // Custom range problems are flagged on the start field (red) with a small hint under 自訂.
   const [customError, setCustomError] = useState("");
-  const customRef = useRef<HTMLDivElement>(null);
   const activePreset = customOpen ? customKey : time.preset;
 
   // Inline condition editor: [field ▾ | value] replaces [+新增] while open.
@@ -143,15 +145,20 @@ export function FilterBar<P extends string, F extends string>({
     applyTime({ preset: customKey, customFrom: from, customTo: to });
   };
 
+  const customDirty = time.preset !== customKey || customFrom !== time.customFrom || customTo !== time.customTo;
+
   const selectPreset = (preset: P) => {
     setCustomError("");
     if (preset === customKey) {
+      setFocusCustomStart(true);
       setCustomOpen(true);
-      if (customFrom) applyCustom(customFrom, customTo);
       return;
     }
+    // Unapplied custom dates are dropped; the applied ones stay remembered for the next 自訂.
     setCustomOpen(false);
-    applyTime({ preset, customFrom, customTo });
+    setCustomFrom(time.customFrom);
+    setCustomTo(time.customTo);
+    applyTime({ preset, customFrom: time.customFrom, customTo: time.customTo });
   };
 
   const closeEditor = () => {
@@ -186,16 +193,16 @@ export function FilterBar<P extends string, F extends string>({
           </span>
           {presets.map((p) =>
             p.key === customKey && customOpen ? (
-              // [自訂｜開始 - 結束]: applied once focus leaves the whole group, so
-              // moving from start to end doesn't query an open-ended range first.
-              <span key={p.key} className="relative inline-flex">
+              // [自訂｜開始 - 結束] [查詢]: applied only by 查詢 or Enter in either field, so
+              // editing (or leaving for another preset) never queries a half-set range.
+              <span key={p.key} className="relative inline-flex gap-2">
                 <div
-                  ref={customRef}
-                  // Not a control itself: only catches focus leaving the start/end pair.
+                  // Not a control itself: only catches Enter bubbling up from the two text fields
+                  // (each has already committed its typed value by then).
                   role="presentation"
                   className="inline-flex h-8 items-stretch overflow-hidden rounded border border-[#0055dc] bg-white"
-                  onBlur={(e) => {
-                    if (!containsFocus(customRef.current, e.relatedTarget as Node | null)) {
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
                       applyCustom(customFromRef.current, customToRef.current);
                     }
                   }}
@@ -206,17 +213,17 @@ export function FilterBar<P extends string, F extends string>({
                   <DateTimeInput
                     type={inputType}
                     aria-label={`開始${unit}`}
-                    autoFocus
+                    autoFocus={focusCustomStart}
                     value={customFrom}
                     onChange={(v) => {
                       setCustomFrom(v);
-                      // Editing either end drops a stale hint; it is re-checked when focus leaves.
+                      // Editing either end drops a stale hint; it is re-checked on 查詢.
                       if (v) setCustomError("");
                     }}
-                    // Picking the start moves on to the end while it's empty, else applies.
-                    onCommit={(v) =>
-                      customToRef.current ? applyCustom(v, customToRef.current) : customEndRef.current?.open()
-                    }
+                    // Picking the start moves on to the end while it's empty.
+                    onCommit={() => {
+                      if (!customToRef.current) customEndRef.current?.open();
+                    }}
                     max={customTo || undefined}
                     aria-invalid={!!customError}
                     aria-describedby={customError ? hintId : undefined}
@@ -234,12 +241,19 @@ export function FilterBar<P extends string, F extends string>({
                       setCustomTo(v);
                       if (customError === `起始${unit}不可晚於結束${unit}`) setCustomError("");
                     }}
-                    onCommit={(v) => applyCustom(customFromRef.current, v)}
                     min={customFrom || undefined}
                     className="pr-1"
                     inputClassName="border-0 px-2 py-1 text-sm outline-none"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => applyCustom(customFromRef.current, customToRef.current)}
+                  // Highlighted while the fields differ from the applied range: not queried yet.
+                  className={customDirty ? PRESET_ACTIVE_CLASS : PRESET_CLASS}
+                >
+                  查詢
+                </button>
                 {customError && (
                   <span
                     id={hintId}

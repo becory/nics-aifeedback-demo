@@ -346,57 +346,74 @@ describe('FilterBar: chips', () => {
 describe('FilterBar: custom range', () => {
   const start = () => screen.getByRole('textbox', { name: '開始時間' })
   const end = () => screen.getByRole('textbox', { name: '結束時間' })
+  const query = () => userEvent.click(screen.getByRole('button', { name: '查詢' }))
 
-  it('自訂 opens the start field (focused, calendar open) without reporting anything yet', async () => {
+  it('自訂 opens the start field (focused, calendar open) and a 查詢 button, without reporting anything yet', async () => {
     const { onChange } = setup()
     await userEvent.click(screen.getByRole('button', { name: '自訂' }))
     expect(start()).toHaveFocus()
     expect(screen.getByRole('dialog', { name: '開始時間' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '查詢' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '近 7 天' })).toHaveAttribute('aria-pressed', 'false')
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('applies the range once focus leaves the group, not when moving from start to end', async () => {
+  it('typing and leaving the fields reports nothing; 查詢 applies the range', async () => {
     const { onChange } = setup()
     await userEvent.click(screen.getByRole('button', { name: '自訂' }))
     await userEvent.keyboard('2026-10-01 08:00')
     await userEvent.click(end())
     await userEvent.keyboard('2026-10-05 18:30')
-    expect(onChange).not.toHaveBeenCalled()
     await outside()
+    expect(onChange).not.toHaveBeenCalled()
+
+    await query()
     expect(onChange).toHaveBeenCalledExactlyOnceWith({
       time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '2026-10-05T18:30' },
       conditions: [],
     })
   })
 
-  it('Tab from start to end does not apply; Tab out of the group does', async () => {
+  it('查詢 right after typing applies the typed end, without leaving the field first', async () => {
+    const { onChange } = setup()
+    await userEvent.click(screen.getByRole('button', { name: '自訂' }))
+    await userEvent.keyboard('2026-10-01 08:00')
+    await userEvent.click(end())
+    await userEvent.keyboard('2026-10-05 18:30')
+    await query()
+    expect(lastValue(onChange)?.time).toEqual({
+      preset: 'custom',
+      customFrom: '2026-10-01T08:00',
+      customTo: '2026-10-05T18:30',
+    })
+  })
+
+  it('tabbing through start, end and out of the group reports nothing', async () => {
     const { onChange } = setup()
     await userEvent.click(screen.getByRole('button', { name: '自訂' }))
     await userEvent.keyboard('2026-10-01 08:00')
     await userEvent.tab()
     expect(end()).toHaveFocus()
-    expect(onChange).not.toHaveBeenCalled()
     await userEvent.keyboard('2026-10-05 18:30')
     await userEvent.tab()
-    expect(onChange).toHaveBeenCalledExactlyOnceWith({
-      time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '2026-10-05T18:30' },
-      conditions: [],
-    })
+    await userEvent.tab()
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('an empty end means up to now', async () => {
     const { onChange } = setup()
     await userEvent.click(screen.getByRole('button', { name: '自訂' }))
     await userEvent.keyboard('2026-10-01 08:00')
-    await outside()
+    await query()
     expect(lastValue(onChange)?.time).toEqual({ preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '' })
   })
 
-  it('leaving without a start flags the start field and reports nothing', async () => {
+  it('查詢 without a start flags the start field and reports nothing', async () => {
     const { onChange } = setup()
     await userEvent.click(screen.getByRole('button', { name: '自訂' }))
     await outside()
+    expect(start()).not.toHaveAttribute('aria-invalid', 'true')
+    await query()
     expect(onChange).not.toHaveBeenCalled()
     expect(start()).toHaveAttribute('aria-invalid', 'true')
     expect(start()).toHaveAccessibleDescription('請設定起始時間')
@@ -408,20 +425,28 @@ describe('FilterBar: custom range', () => {
     })
     await userEvent.clear(start())
     await userEvent.keyboard('2026-10-09 08:00')
-    await outside()
+    await query()
     expect(onChange).toHaveBeenCalledExactlyOnceWith({
       time: { preset: 'custom', customFrom: '2026-10-05T18:00', customTo: '2026-10-05T18:00' },
       conditions: [],
     })
   })
 
-  it('reports the 起始不可晚於結束 problem for an inverted stored range and keeps the current range', async () => {
+  it('a custom range loaded from outside (e.g. the URL) does not focus the start or open its calendar', () => {
+    setup({
+      initial: { ...EMPTY, time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '2026-10-05T18:00' } },
+    })
+    expect(start()).toHaveValue('2026-10-01 08:00')
+    expect(start()).not.toHaveFocus()
+    expect(screen.queryByRole('dialog', { name: '開始時間' })).not.toBeInTheDocument()
+  })
+
+  it('reports the 起始不可晚於結束 problem for an inverted stored range on 查詢 and keeps the current range', async () => {
     // A range can only become inverted from outside (e.g. the URL); the fields themselves clamp.
     const { onChange } = setup({
       initial: { ...EMPTY, time: { preset: 'custom', customFrom: '2026-10-09T00:00', customTo: '2026-10-02T00:00' } },
     })
-    expect(start()).toHaveFocus()
-    await outside()
+    await query()
     expect(onChange).not.toHaveBeenCalled()
     expect(start()).toHaveAccessibleDescription('起始時間不可晚於結束時間')
     // Editing the end clears that hint.
@@ -432,7 +457,7 @@ describe('FilterBar: custom range', () => {
   it('typing a start again clears the 請設定起始 hint', async () => {
     setup()
     await userEvent.click(screen.getByRole('button', { name: '自訂' }))
-    await outside()
+    await query()
     expect(start()).toHaveAttribute('aria-invalid', 'true')
     await userEvent.click(start())
     await userEvent.keyboard('2026-10-01')
@@ -440,52 +465,60 @@ describe('FilterBar: custom range', () => {
     expect(start()).not.toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('date-only: picking the start day moves on to the end calendar; picking the end day applies', async () => {
+  it('date-only: picking the start day moves on to the end calendar; picking the end day waits for 查詢', async () => {
     const { onChange } = setup({ dateOnly: true })
     await userEvent.click(screen.getByRole('button', { name: '自訂' }))
     expect(screen.getByRole('textbox', { name: '開始日期' })).toHaveAttribute('placeholder', 'YYYY-MM-DD')
     await userEvent.click(screen.getByRole('button', { name: /^2026年10月3日/ }))
-    expect(onChange).not.toHaveBeenCalled()
     expect(screen.getByRole('textbox', { name: '結束日期' })).toHaveFocus()
     expect(screen.getByRole('dialog', { name: '結束日期' })).toBeInTheDocument()
     // Days before the start are disabled at the end.
     expect(screen.getByRole('button', { name: /^2026年10月2日/ })).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: /^2026年10月9日/ }))
+    expect(onChange).not.toHaveBeenCalled()
+
+    await query()
     expect(onChange).toHaveBeenCalledExactlyOnceWith({
       time: { preset: 'custom', customFrom: '2026-10-03', customTo: '2026-10-09' },
       conditions: [],
     })
   })
 
-  it('date-only: picking a start while an end is set applies right away', async () => {
+  it('date-only: picking a start while an end is set waits for 查詢', async () => {
     const { onChange } = setup({
       dateOnly: true,
       initial: { ...EMPTY, time: { preset: 'custom', customFrom: '2026-10-05', customTo: '2026-10-09' } },
     })
+    await userEvent.click(screen.getByRole('textbox', { name: '開始日期' }))
     await userEvent.click(screen.getByRole('button', { name: /^2026年10月2日/ }))
-    expect(onChange).toHaveBeenCalledExactlyOnceWith({
-      time: { preset: 'custom', customFrom: '2026-10-02', customTo: '2026-10-09' },
-      conditions: [],
-    })
+    expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('Enter in the end field applies the range', async () => {
-    const { onChange } = setup()
-    await userEvent.click(screen.getByRole('button', { name: '自訂' }))
-    await userEvent.keyboard('2026-10-01 08:00')
+  it.each([
+    ['end', () => end()],
+    ['start', () => start()],
+  ])('Enter in the %s field applies the range', async (_, field) => {
+    const { onChange } = setup({
+      initial: { ...EMPTY, time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '2026-10-02T08:00' } },
+    })
     await userEvent.click(end())
-    await userEvent.keyboard('2026-10-02 08:00{Enter}')
+    await userEvent.clear(end())
+    await userEvent.keyboard('2026-10-03 08:00')
+    await userEvent.click(field())
+    await userEvent.keyboard('{Enter}')
     expect(onChange).toHaveBeenCalledExactlyOnceWith({
-      time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '2026-10-02T08:00' },
+      time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '2026-10-03T08:00' },
       conditions: [],
     })
   })
 
-  it('自訂 with a remembered start applies it immediately', async () => {
+  it('自訂 with a remembered start waits for 查詢 and then applies it', async () => {
     const { onChange } = setup({
       initial: { ...EMPTY, time: { preset: '7d', customFrom: '2026-10-01T08:00', customTo: '' } },
     })
     await userEvent.click(screen.getByRole('button', { name: '自訂' }))
+    expect(onChange).not.toHaveBeenCalled()
+    await query()
     expect(onChange).toHaveBeenCalledExactlyOnceWith({
       time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '' },
       conditions: [],
@@ -500,5 +533,20 @@ describe('FilterBar: custom range', () => {
     expect(lastValue(onChange)?.time).toEqual({ preset: '30d', customFrom: '2026-10-01T08:00', customTo: '' })
     expect(screen.queryByRole('textbox', { name: '開始時間' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '自訂' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('regression: leaving an unapplied custom range for another preset reports only that preset, once', async () => {
+    const { onChange } = setup({
+      initial: { ...EMPTY, time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '' } },
+    })
+    await userEvent.click(start())
+    await userEvent.clear(start())
+    await userEvent.keyboard('2026-10-03 08:00')
+    await userEvent.click(screen.getByRole('button', { name: '近 7 天' }))
+    // The unapplied start is dropped; the applied one stays remembered.
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      time: { preset: '7d', customFrom: '2026-10-01T08:00', customTo: '' },
+      conditions: [],
+    })
   })
 })

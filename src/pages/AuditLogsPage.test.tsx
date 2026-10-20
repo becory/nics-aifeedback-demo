@@ -206,6 +206,29 @@ describe('AuditLogsPage query', () => {
     expect(screen.getByRole('checkbox', { name: '隱藏「查詢稽核日誌」事件' })).not.toBeChecked()
   })
 
+  it('queries a custom range picked in the filter bar only when 查詢 is clicked', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('登入成功')
+    const before = mockedGetAuditLogs.mock.calls.length
+
+    await user.click(screen.getByRole('button', { name: '自訂' }))
+    await user.keyboard('2026-10-01 08:00')
+    await user.click(screen.getByRole('textbox', { name: '結束時間' }))
+    await user.keyboard('2026-10-02 09:30')
+    expect(mockedGetAuditLogs.mock.calls.length).toBe(before)
+
+    await user.click(screen.getByRole('button', { name: '查詢' }))
+    await waitFor(() =>
+      expect(lastParams()).toMatchObject({
+        from: new Date('2026-10-01T08:00').toISOString(),
+        to: new Date('2026-10-02T09:30').toISOString(),
+      }),
+    )
+    expect(mockedGetAuditLogs.mock.calls.length).toBe(before + 1)
+    expect(currentSearch().get('range')).toBe('custom')
+  })
+
   it('falls back to the default range for an invalid range in the URL', async () => {
     renderPage('/audit-logs?range=1y')
     await screen.findByText('登入成功')
