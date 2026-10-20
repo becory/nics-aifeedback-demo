@@ -139,6 +139,43 @@ describe('ScoresPage', () => {
     expect(mockedGet).toHaveBeenCalledTimes(2)
   })
 
+  it('shows exactly what is typed after clearing the score, without a leading 0 (regression)', async () => {
+    mockedGet.mockReturnValue(listResponse([good, normal, bad]))
+    render(<ScoresPage />)
+    const user = await openEdit('good')
+    const score = screen.getByLabelText('分數（0～100）') as HTMLInputElement
+
+    await user.clear(score)
+    expect(score.value).toBe('')
+    await user.type(score, '60')
+    expect(score.value).toBe('60')
+  })
+
+  it('requires a score instead of saving an empty field as 0', async () => {
+    mockedGet.mockReturnValue(listResponse([good, normal, bad]))
+    render(<ScoresPage />)
+    const user = await openEdit('good')
+
+    await user.clear(screen.getByLabelText('分數（0～100）'))
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    expect(screen.getByText('請輸入分數')).toBeInTheDocument()
+    expect(mockedUpdate).not.toHaveBeenCalled()
+  })
+
+  it('selects the current score on focus, so typing replaces it', async () => {
+    mockedGet.mockReturnValue(listResponse([good, normal, bad]))
+    const select = vi.spyOn(HTMLInputElement.prototype, 'select')
+    render(<ScoresPage />)
+    const user = await openEdit('good')
+
+    await user.click(screen.getByLabelText('分數（0～100）'))
+
+    expect(select).toHaveBeenCalled()
+    expect(select.mock.contexts.at(-1)).toBe(screen.getByLabelText('分數（0～100）'))
+    select.mockRestore()
+  })
+
   it('accepts the 0 and 100 boundaries', async () => {
     mockedGet.mockReturnValue(listResponse([good, normal, bad]))
     mockedUpdate.mockReturnValue(respond(good))
