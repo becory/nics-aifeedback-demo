@@ -109,6 +109,8 @@ export function FilterBar<P extends string, F extends string>({
     setCustomToState(v);
   };
   const customEndRef = useRef<DateTimeInputHandle>(null);
+  const customStartRef = useRef<HTMLSpanElement>(null);
+  const pendingId = useId();
   // 自訂 opens the date inputs without touching the applied range until it is valid.
   const [customOpen, setCustomOpen] = useState(time.preset === customKey);
   // Focus the start (and open its calendar) only when the user picks 自訂, not when the page
@@ -202,34 +204,39 @@ export function FilterBar<P extends string, F extends string>({
                   role="presentation"
                   className="inline-flex h-8 items-stretch overflow-hidden rounded border border-[#0055dc] bg-white"
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
-                      applyCustom(customFromRef.current, customToRef.current);
-                    }
+                    if (e.key !== "Enter" || !(e.target instanceof HTMLInputElement)) return;
+                    // Enter in the start while the end is empty just moves on to the end (the
+                    // start's onCommit opens it); querying here would hit a half-set range.
+                    const inStart = customStartRef.current?.contains(e.target);
+                    if (inStart && !customToRef.current) return;
+                    applyCustom(customFromRef.current, customToRef.current);
                   }}
                 >
                   <span className="flex items-center bg-[#0055dc] px-3 text-sm font-medium text-white">
                     {p.label}
                   </span>
-                  <DateTimeInput
-                    type={inputType}
-                    aria-label={`開始${unit}`}
-                    autoFocus={focusCustomStart}
-                    value={customFrom}
-                    onChange={(v) => {
-                      setCustomFrom(v);
-                      // Editing either end drops a stale hint; it is re-checked on 查詢.
-                      if (v) setCustomError("");
-                    }}
-                    // Picking the start moves on to the end while it's empty.
-                    onCommit={() => {
-                      if (!customToRef.current) customEndRef.current?.open();
-                    }}
-                    max={customTo || undefined}
-                    aria-invalid={!!customError}
-                    aria-describedby={customError ? hintId : undefined}
-                    className={`pr-1 ${customError ? "bg-red-50 ring-1 ring-inset ring-[#d93025]" : ""}`}
-                    inputClassName={`border-0 bg-transparent px-2 py-1 text-sm outline-none ${customError ? "text-[#b42318]" : ""}`}
-                  />
+                  <span ref={customStartRef} className="contents">
+                    <DateTimeInput
+                      type={inputType}
+                      aria-label={`開始${unit}`}
+                      autoFocus={focusCustomStart}
+                      value={customFrom}
+                      onChange={(v) => {
+                        setCustomFrom(v);
+                        // Editing either end drops a stale hint; it is re-checked on 查詢.
+                        if (v) setCustomError("");
+                      }}
+                      // Picking the start moves on to the end while it's empty.
+                      onCommit={() => {
+                        if (!customToRef.current) customEndRef.current?.open();
+                      }}
+                      max={customTo || undefined}
+                      aria-invalid={!!customError}
+                      aria-describedby={customError ? hintId : undefined}
+                      className={`pr-1 ${customError ? "bg-red-50 ring-1 ring-inset ring-[#d93025]" : ""}`}
+                      inputClassName={`border-0 bg-transparent px-2 py-1 text-sm outline-none ${customError ? "text-[#b42318]" : ""}`}
+                    />
+                  </span>
                   <span className="flex items-center px-1 text-slate-400">-</span>
                   <DateTimeInput
                     ref={customEndRef}
@@ -251,9 +258,14 @@ export function FilterBar<P extends string, F extends string>({
                   onClick={() => applyCustom(customFromRef.current, customToRef.current)}
                   // Highlighted while the fields differ from the applied range: not queried yet.
                   className={customDirty ? PRESET_ACTIVE_CLASS : PRESET_CLASS}
+                  aria-describedby={customDirty ? pendingId : undefined}
                 >
                   查詢
                 </button>
+                {/* The highlight above is visual only; this says the same to screen readers. */}
+                <span id={pendingId} hidden>
+                  尚未套用
+                </span>
                 {customError && (
                   <span
                     id={hintId}

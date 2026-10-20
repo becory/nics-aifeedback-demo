@@ -512,6 +512,38 @@ describe('FilterBar: custom range', () => {
     })
   })
 
+  it('Enter in the start field with an empty end moves on to the end instead of querying', async () => {
+    const { onChange } = setup()
+    await userEvent.click(screen.getByRole('button', { name: '自訂' }))
+    await userEvent.keyboard('2026-10-01 08:00{Enter}')
+    expect(onChange).not.toHaveBeenCalled()
+    expect(end()).toHaveFocus()
+    expect(screen.getByRole('dialog', { name: '結束時間' })).toBeInTheDocument()
+
+    // Enter in the (still empty) end field then means "up to now".
+    await userEvent.keyboard('{Enter}')
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '' },
+      conditions: [],
+    })
+  })
+
+  it('describes 查詢 as not yet applied while the fields differ from the applied range', async () => {
+    setup({
+      initial: { ...EMPTY, time: { preset: 'custom', customFrom: '2026-10-01T08:00', customTo: '' } },
+    })
+    const queryButton = screen.getByRole('button', { name: '查詢' })
+    expect(queryButton).not.toHaveAccessibleDescription()
+
+    await userEvent.click(end())
+    await userEvent.keyboard('2026-10-05 18:00')
+    await userEvent.tab()
+    expect(queryButton).toHaveAccessibleDescription('尚未套用')
+
+    await userEvent.click(queryButton)
+    expect(queryButton).not.toHaveAccessibleDescription()
+  })
+
   it('自訂 with a remembered start waits for 查詢 and then applies it', async () => {
     const { onChange } = setup({
       initial: { ...EMPTY, time: { preset: '7d', customFrom: '2026-10-01T08:00', customTo: '' } },
