@@ -104,6 +104,26 @@ describe('ImportPage organizations and logs', () => {
     expect(await screen.findByRole('cell', { name: 'key-of-b' })).toBeInTheDocument()
   })
 
+  it('shows the logs of the organization picked last when an earlier response arrives late', async () => {
+    const user = userEvent.setup()
+    let resolveA!: (v: AxiosResponse<{ data: ImportLog[] }>) => void
+    mockedGetImportLogs.mockImplementation((params) =>
+      params?.organizationId === 'org-a'
+        ? new Promise((r) => (resolveA = r))
+        : ok({ data: [makeLog({ id: 'b1', keyId: 'key-of-b' })] }),
+    )
+    await renderPage()
+    await waitFor(() => expect(mockedGetImportLogs).toHaveBeenCalledWith({ organizationId: 'org-a' }))
+
+    await user.selectOptions(screen.getByLabelText('組織'), 'org-b')
+    expect(await screen.findByRole('cell', { name: 'key-of-b' })).toBeInTheDocument()
+    resolveA({ data: { data: [makeLog({ id: 'a1', keyId: 'key-of-a' })] } } as AxiosResponse<{ data: ImportLog[] }>)
+
+    await new Promise((r) => setTimeout(r, 20))
+    expect(screen.queryByRole('cell', { name: 'key-of-a' })).not.toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'key-of-b' })).toBeInTheDocument()
+  })
+
   it('tells a user without organizations that nothing can be imported', async () => {
     mockedGetOrganizations.mockImplementation(() => ok({ data: [] }))
     render(<ImportPage />)
@@ -239,6 +259,50 @@ describe('ImportPage upload', () => {
     expect(uploadButton()).toBeDisabled()
     await waitFor(() => expect(mockedGetImportLogs.mock.calls.length).toBe(logCallsBefore + 1))
     expect(mockedGetImportLogs).toHaveBeenLastCalledWith({ organizationId: 'org-b' })
+  })
+
+  it('clears the file input after a successful import, so the same file can be picked again', async () => {
+    const user = userEvent.setup()
+    mockedImport.mockImplementation(() => ok(makeDetail()))
+    const { container } = await renderPage()
+    await user.upload(fileInput(container), jsonFile('{}'))
+    await user.click(uploadButton())
+
+    expect(await screen.findByText(/匯入結果：成功/)).toBeInTheDocument()
+    expect(fileInput(container).value).toBe('')
+    expect(fileInput(container).files).toHaveLength(0)
+  })
+
+  it('clears the previous upload result and error when another organization is picked', async () => {
+    const user = userEvent.setup()
+    mockedImport.mockImplementation(() => ok(makeDetail()))
+    const { container } = await renderPage()
+    await user.upload(fileInput(container), jsonFile('{}'))
+    await user.click(uploadButton())
+    expect(await screen.findByText(/匯入結果：成功/)).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('組織'), 'org-b')
+    expect(screen.queryByText(/匯入結果/)).not.toBeInTheDocument()
+
+    await user.upload(fileInput(container), jsonFile('not json'))
+    await user.click(uploadButton())
+    expect(await screen.findByText('檔案不是有效的 JSON 格式')).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('組織'), 'org-a')
+    expect(screen.queryByText('檔案不是有效的 JSON 格式')).not.toBeInTheDocument()
+  })
+
+  it('keeps the organization fixed while importing', async () => {
+    const user = userEvent.setup()
+    let resolve!: (v: AxiosResponse<ImportLogDetail>) => void
+    mockedImport.mockImplementation(() => new Promise((r) => (resolve = r)))
+    const { container } = await renderPage()
+    await user.upload(fileInput(container), jsonFile('{}'))
+    await user.click(uploadButton())
+
+    expect(await screen.findByRole('button', { name: '匯入中…' })).toBeDisabled()
+    expect(screen.getByLabelText('組織')).toBeDisabled()
+    resolve({ data: makeDetail() } as AxiosResponse<ImportLogDetail>)
+    await waitFor(() => expect(screen.getByLabelText('組織')).toBeEnabled())
   })
 
   it('rejects a file that is not valid JSON without calling the API', async () => {
