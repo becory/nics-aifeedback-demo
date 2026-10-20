@@ -28,8 +28,15 @@ export function Modal({ open, title, onClose, children, wide, fillHeight }: Moda
     // same render the inner one is already here: go below any modal rendered inside this one.
     const firstInside = openStack.findIndex((el) => self.contains(el))
     openStack.splice(firstInside < 0 ? openStack.length : firstInside, 0, self)
+
+    // aria-modal hides the page behind from screen readers, so focus must be inside the dialog:
+    // move it to the box unless the content already focused one of its own fields, and give it
+    // back to whatever opened the dialog once it closes.
+    const opener = self.contains(document.activeElement) ? null : document.activeElement
+    if (opener) self.focus()
     return () => {
       openStack.splice(openStack.indexOf(self), 1)
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
     }
   }, [open])
 
@@ -50,11 +57,12 @@ export function Modal({ open, title, onClose, children, wide, fillHeight }: Moda
       <div className="absolute inset-0 bg-[#1d1d1d]/40" aria-hidden="true" onClick={onClose} />
       <div
         ref={boxRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         // The box never scrolls itself; only the body below the title does, vertically.
-        className={`relative flex max-h-[90vh] w-full flex-col overflow-hidden border border-[#d9d9d9] bg-white shadow-lg ${
+        className={`relative flex max-h-[90vh] outline-none w-full flex-col overflow-hidden border border-[#d9d9d9] bg-white shadow-lg ${
           wide === 'xl' ? 'max-w-5xl' : wide ? 'max-w-2xl' : 'max-w-lg'
         }`}
         style={{ borderRadius: 4 }}

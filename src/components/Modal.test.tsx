@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Modal } from './Modal'
 
@@ -34,6 +34,46 @@ describe('Modal', () => {
     const dialog = screen.getByRole('dialog', { name: '標題' })
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(dialog).toHaveTextContent('內容')
+  })
+
+  describe('focus', () => {
+    function WithTrigger({ children }: { children?: ReactNode }) {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            開啟
+          </button>
+          <Modal open={open} title="標題" onClose={() => setOpen(false)}>
+            {children ?? '內容'}
+          </Modal>
+        </>
+      )
+    }
+
+    it('moves focus into the dialog when it opens', async () => {
+      render(<WithTrigger />)
+      await userEvent.click(screen.getByRole('button', { name: '開啟' }))
+      expect(screen.getByRole('dialog', { name: '標題' })).toContainElement(document.activeElement as HTMLElement)
+    })
+
+    it('keeps focus on a field the dialog content focused itself', async () => {
+      render(
+        <WithTrigger>
+          <input aria-label="名稱" autoFocus />
+        </WithTrigger>,
+      )
+      await userEvent.click(screen.getByRole('button', { name: '開啟' }))
+      expect(screen.getByRole('textbox', { name: '名稱' })).toHaveFocus()
+    })
+
+    it('returns focus to the element that opened it when it closes', async () => {
+      render(<WithTrigger />)
+      await userEvent.click(screen.getByRole('button', { name: '開啟' }))
+      await userEvent.keyboard('{Escape}')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '開啟' })).toHaveFocus()
+    })
   })
 
   it('closes on Esc', async () => {
