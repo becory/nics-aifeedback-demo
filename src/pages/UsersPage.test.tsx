@@ -290,6 +290,7 @@ describe('UsersPage edit', () => {
   })
 
   it('revokes admin and an organization, normalizing name and email', async () => {
+    vi.mocked(getUsers).mockResolvedValue(list([alice, { ...bob, isSystemAdmin: true }]))
     const user = await renderPage()
     await openEdit(user, 'Alice')
     await user.click(screen.getByRole('checkbox', { name: '資安院 (NICS)' }))
@@ -306,6 +307,28 @@ describe('UsersPage edit', () => {
       isSystemAdmin: false,
     })
     await waitFor(() => expect(screen.queryByRole('heading', { name: '編輯使用者' })).not.toBeInTheDocument())
+  })
+
+  it('refuses to revoke admin from the last system admin', async () => {
+    const user = await renderPage()
+    await openEdit(user, 'Alice')
+    await user.click(screen.getByRole('checkbox', { name: '管理員' }))
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    expect(await screen.findByText('無法移除最後一位系統管理員的管理員權限')).toBeInTheDocument()
+    expect(updateUser).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: '編輯使用者' })).toBeInTheDocument()
+  })
+
+  it('still saves other changes to the last system admin', async () => {
+    const user = await renderPage()
+    await openEdit(user, 'Alice')
+    await user.click(screen.getByRole('checkbox', { name: '資安院 (NICS)' }))
+    await user.click(screen.getByRole('button', { name: '儲存' }))
+
+    await waitFor(() =>
+      expect(updateUser).toHaveBeenCalledWith('u1', expect.objectContaining({ isSystemAdmin: true, organizationIds: ['o2'] })),
+    )
   })
 
   it('shows the API message when the update fails', async () => {

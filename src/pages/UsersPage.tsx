@@ -128,6 +128,11 @@ export function UsersPage() {
       setError("請輸入密碼");
       return;
     }
+    // Same rule as the API (and as delete below): the system always keeps one System Admin.
+    if (editing?.isSystemAdmin && !isAdmin && items.filter((u) => u.isSystemAdmin).length <= 1) {
+      setError("無法移除最後一位系統管理員的管理員權限");
+      return;
+    }
 
     const normalizedEmail = email.trim().toLowerCase();
     try {
