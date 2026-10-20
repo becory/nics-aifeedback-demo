@@ -102,7 +102,7 @@ export function OrganizationServiceTable({
       next.add(orgId);
       if (!byOrg[orgId] || byOrg[orgId].error) {
         setByOrg((prev) => ({ ...prev, [orgId]: { loading: true, error: "", services: [] } }));
-        fetchOrg(orgId);
+        void fetchOrg(orgId);
       }
     }
     setExpanded(next);

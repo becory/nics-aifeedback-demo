@@ -50,7 +50,7 @@ export function ScoresPage() {
   };
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   const openEdit = (key: FeedbackRating) => {
@@ -101,7 +101,7 @@ export function ScoresPage() {
       return;
     }
 
-    refresh();
+    void refresh();
     setModalOpen(false);
   };
 

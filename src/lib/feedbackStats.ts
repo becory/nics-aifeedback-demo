@@ -79,7 +79,7 @@ export function groupFeedbacksByDay(
     startKey = toDateKey(new Date(startTime))
     endKey = toDateKey(new Date(endTime))
   } else if (counts.size > 0) {
-    const keys = [...counts.keys()].sort()
+    const keys = [...counts.keys()].sort((a, b) => a.localeCompare(b))
     startKey = keys[0]
     endKey = keys[keys.length - 1]
   } else {
@@ -208,7 +208,7 @@ export function countByField(
 
 function formatDayLabel(date: string): string {
   const [y, m, d] = date.split('-')
-  return `${y}/${parseInt(m, 10)}/${parseInt(d, 10)}`
+  return `${y}/${Number.parseInt(m, 10)}/${Number.parseInt(d, 10)}`
 }
 
 export function getFeedbackTimeRange(feedbacks: Feedback[]): { min: string; max: string } {

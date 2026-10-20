@@ -64,7 +64,7 @@ export function AuditLogsPage() {
     // Dropdown sources are best-effort: without them the filters still work via id/IP and
     // the list falls back to raw ids.
     // includeDeleted: old audit entries must still resolve a deleted user's id to a name.
-    Promise.allSettled([getUsers(true), getOrganizations()]).then(([usersRes, orgsRes]) => {
+    void Promise.allSettled([getUsers(true), getOrganizations()]).then(([usersRes, orgsRes]) => {
       if (cancelled) return;
       if (usersRes.status === "fulfilled") setUsers(usersRes.value.data.data);
       if (orgsRes.status === "fulfilled") setOrganizations(orgsRes.value.data.data);

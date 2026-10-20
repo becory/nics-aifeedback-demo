@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setReady(true);
       }
     };
-    init();
+    void init();
   }, [refreshSession]);
 
   useEffect(() => {
