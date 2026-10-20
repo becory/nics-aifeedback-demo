@@ -50,6 +50,18 @@ describe('Input', () => {
     expect(screen.getByRole('textbox', { name: '名稱' })).toHaveAttribute('id', 'name-field')
   })
 
+  it('keeps two fields with the same label each tied to its own label', () => {
+    render(
+      <>
+        <Input label="目前密碼" defaultValue="first" />
+        <Input label="目前密碼" defaultValue="second" />
+      </>,
+    )
+    const fields = screen.getAllByLabelText('目前密碼') as HTMLInputElement[]
+    expect(fields.map((f) => f.value)).toEqual(['first', 'second'])
+    expect(fields[0].id).not.toBe(fields[1].id)
+  })
+
   it('shows the hint and the error', () => {
     render(<Input label="名稱" hint="最多 50 字" error="必填" />)
     expect(screen.getByText('最多 50 字')).toBeInTheDocument()
@@ -63,6 +75,16 @@ describe('Select', () => {
     render(<Select label="組織" options={ORGS} value="o1" onChange={(e) => onChange(e.target.value)} />)
     await userEvent.selectOptions(screen.getByRole('combobox', { name: '組織' }), 'o3')
     expect(onChange).toHaveBeenCalledExactlyOnceWith('o3')
+  })
+
+  it('keeps two selects with the same label each tied to its own label', () => {
+    render(
+      <>
+        <Select label="組織" options={ORGS} value="o1" onChange={vi.fn()} />
+        <Select label="組織" options={ORGS} value="o3" onChange={vi.fn()} />
+      </>,
+    )
+    expect((screen.getAllByLabelText('組織') as HTMLSelectElement[]).map((s) => s.value)).toEqual(['o1', 'o3'])
   })
 
   it('while loading: disabled, busy, only 載入中… and a spinner', () => {

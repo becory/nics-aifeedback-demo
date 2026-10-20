@@ -51,12 +51,8 @@ function renderPage() {
 const card = (title: string) => within(screen.getByRole('heading', { name: title }).parentElement!)
 const passwordCard = () => card('修改密碼')
 const resetCard = () => card('重設二階段驗證')
-/**
- * The reset card's own password field. Known bug (tracked separately): ui `Input` uses the label as
- * its id, so both 目前密碼 fields get id="目前密碼" and this field's label points at the other one.
- * Once fixed, query it with `resetCard().getByLabelText('目前密碼')` instead.
- */
-const resetPasswordInput = () => resetCard().getByDisplayValue('', { exact: true }) as HTMLInputElement
+/** The reset card's own password field: both cards have a field labelled 目前密碼. */
+const resetPasswordInput = () => resetCard().getByLabelText('目前密碼') as HTMLInputElement
 
 async function changePassword(current: string, next: string, confirm: string) {
   const user = userEvent.setup()
