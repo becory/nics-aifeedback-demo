@@ -66,6 +66,11 @@ describe('Authorization header', () => {
     expect(authHeaderOf(0)).toBe('Bearer token-a')
   })
 
+  it('sends credentials so the refresh cookie goes along', async () => {
+    await api.instance.get('/feedback')
+    expect(adapter.mock.calls[0][0].withCredentials).toBe(true)
+  })
+
   it('sends no Authorization header without a token', async () => {
     await api.instance.get('/feedback')
     expect(authHeaderOf(0)).toBeUndefined()
@@ -102,6 +107,17 @@ describe('early refresh before expiry', () => {
 
     expect(refresh).not.toHaveBeenCalled()
     expect(authHeaderOf(0)).toBe('Bearer old')
+  })
+
+  it('does not refresh with exactly a minute left', async () => {
+    api.setAccessToken('old', 120)
+    const refresh = vi.fn(async () => api.setAccessToken('new', 900))
+    api.setRefreshHandler(refresh)
+
+    vi.advanceTimersByTime(60_000)
+    await api.instance.get('/feedback')
+
+    expect(refresh).not.toHaveBeenCalled()
   })
 
   it('never refreshes early when the token came without an expiry', async () => {
@@ -261,7 +277,7 @@ describe('401 handling', () => {
     expect(adapter).toHaveBeenCalledTimes(1)
   })
 
-  it.each(['/auth/login', '/auth/2fa/verify', '/auth/refresh', '/auth/me'])(
+  it.each(['/auth/login', '/auth/login/2fa', '/auth/2fa/confirm', '/auth/refresh', '/auth/me'])(
     'passes a 401 from %s straight through without refreshing',
     async (url) => {
       api.setAccessToken('old', 900)
@@ -277,6 +293,44 @@ describe('401 handling', () => {
       expect(adapter).toHaveBeenCalledTimes(1)
     },
   )
+
+  it('holds a new request until a refresh started by another 401 finishes', async () => {
+    api.setAccessToken('old', 900)
+    const gate = deferred()
+    const refresh = vi.fn(async () => {
+      await gate.promise
+      api.setAccessToken('new', 900)
+    })
+    api.setRefreshHandler(refresh)
+    useResponder((config) =>
+      config.headers.Authorization === 'Bearer new' ? { status: 200, data: config.url } : { status: 401 },
+    )
+
+    const first = api.instance.get('/a')
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalled())
+    const second = api.instance.get('/b')
+    // Give '/b' time to reach the adapter if it were not waiting on the refresh.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(adapter.mock.calls.some(([config]) => config.url === '/b')).toBe(false)
+    gate.resolve()
+    await expect(Promise.all([first, second])).resolves.toMatchObject([{ data: '/a' }, { data: '/b' }])
+
+    expect(refresh).toHaveBeenCalledTimes(1)
+    // '/b' went out once, already carrying the new token: it waited instead of drawing a 401.
+    const bCalls = adapter.mock.calls.filter(([config]) => config.url === '/b')
+    expect(bCalls.map(([config]) => config.headers.Authorization)).toEqual(['Bearer new'])
+  })
+
+  it('refreshes on a 401 for a request that went out without a token', async () => {
+    const refresh = vi.fn(async () => api.setAccessToken('new', 900))
+    api.setRefreshHandler(refresh)
+    useResponder((config) =>
+      config.headers.Authorization === 'Bearer new' ? { status: 200, data: 'fresh' } : { status: 401 },
+    )
+
+    await expect(api.instance.get('/feedback')).resolves.toMatchObject({ data: 'fresh' })
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
 
   it('does not refresh on errors other than 401', async () => {
     api.setAccessToken('old', 900)
@@ -358,16 +412,17 @@ describe('pending request count', () => {
       await gate.promise
       return { status: 200 }
     })
-    const listener = vi.fn()
-    api.subscribePendingRequests(listener)
+    const counts: number[] = []
+    api.subscribePendingRequests(() => counts.push(api.getPendingRequestCount()))
 
     const request = api.instance.get('/feedback')
     await vi.waitFor(() => expect(api.getPendingRequestCount()).toBe(1))
     gate.resolve()
     await request
 
+    expect(counts).toEqual([1, 0])
+
     expect(api.getPendingRequestCount()).toBe(0)
-    expect(listener).toHaveBeenCalledTimes(2)
   })
 
   it('returns to zero after a failed request', async () => {
@@ -380,10 +435,15 @@ describe('pending request count', () => {
     api.setAccessToken('old', 900)
     api.setRefreshHandler(vi.fn(async () => api.setAccessToken('new', 900)))
     useResponder((config) => (config.headers.Authorization === 'Bearer new' ? { status: 200 } : { status: 401 }))
+    const counts: number[] = []
+    api.subscribePendingRequests(() => counts.push(api.getPendingRequestCount()))
 
     await api.instance.get('/feedback')
 
-    expect(api.getPendingRequestCount()).toBe(0)
+    // The retry is nested inside the original request: the count must not touch zero before
+    // the whole thing settles, or the progress bar would flicker off mid-retry.
+    expect(counts.at(-1)).toBe(0)
+    expect(counts.slice(0, -1)).not.toContain(0)
   })
 
   it('stops notifying after unsubscribing', async () => {
@@ -420,6 +480,7 @@ describe('getApiErrorMessage', () => {
 
   it('returns undefined for a missing or non-object body', () => {
     expect(api.getApiErrorMessage(errorWithBody(undefined))).toBeUndefined()
+    expect(api.getApiErrorMessage(errorWithBody(null))).toBeUndefined()
     expect(api.getApiErrorMessage(errorWithBody('Bad Request'))).toBeUndefined()
   })
 

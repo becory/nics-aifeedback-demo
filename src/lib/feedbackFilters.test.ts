@@ -186,6 +186,23 @@ describe('organizationOptions', () => {
   })
 })
 
+describe('Chinese option labels', () => {
+  // Real names are Chinese: zh-Hant orders them by stroke count, unlike the default
+  // (code point) or zh (pinyin) order.
+  const names = ['數位發展部', '交通部', '衛生福利部', '內政部', '經濟部']
+  const strokeOrder = ['內政部', '交通部', '經濟部', '數位發展部', '衛生福利部']
+
+  it('sorts organizations in Traditional Chinese stroke order', () => {
+    const list = names.map((name, i) => service({ organizationId: `org-${i}`, organizationName: name }))
+    expect(organizationOptions(list).map((o) => o.label)).toEqual(strokeOrder)
+  })
+
+  it('sorts services in Traditional Chinese stroke order', () => {
+    const list = names.map((name) => service({ code: 'x', name }))
+    expect(serviceOptions(list).map((o) => o.label)).toEqual(strokeOrder.map((name) => `${name} (x)`))
+  })
+})
+
 describe('formatSourceLabel', () => {
   it('maps known sources to their labels', () => {
     expect(formatSourceLabel('realtime')).toBe('即時')
@@ -233,6 +250,15 @@ describe('filtersToSearchParams', () => {
     expect(params.get('from')).toBe('2026-10-01')
     expect(params.has('to')).toBe(false)
     expect(params.has('page')).toBe(false)
+  })
+
+  it('writes only the end date when a custom range has no start', () => {
+    const params = filtersToSearchParams(
+      { time: { preset: 'custom', customFrom: '', customTo: '2026-10-05' }, conditions: [] },
+      1,
+    )
+    expect(params.has('from')).toBe(false)
+    expect(params.get('to')).toBe('2026-10-05')
   })
 })
 
@@ -292,6 +318,14 @@ describe('filtersFromSearchParams', () => {
       preset: '7d',
       customFrom: '',
       customTo: '',
+    })
+  })
+
+  it('accepts a single-day custom range', () => {
+    expect(filtersFromSearchParams(new URLSearchParams('range=custom&from=2026-10-01&to=2026-10-01')).filters.time).toEqual({
+      preset: 'custom',
+      customFrom: '2026-10-01',
+      customTo: '2026-10-01',
     })
   })
 
@@ -355,6 +389,14 @@ describe('resolveTimeRange', () => {
     expect(resolveTimeRange({ preset: 'custom', customFrom: '', customTo: '' }, now)).toEqual({
       from: '',
       to: undefined,
+    })
+    expect(resolveTimeRange({ preset: 'custom', customFrom: '2026-10-01', customTo: '' }, now)).toEqual({
+      from: '2026-10-01T00:00:00',
+      to: undefined,
+    })
+    expect(resolveTimeRange({ preset: 'custom', customFrom: '', customTo: '2026-10-05' }, now)).toEqual({
+      from: '',
+      to: '2026-10-05T23:59:59',
     })
   })
 })

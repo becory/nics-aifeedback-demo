@@ -30,9 +30,9 @@ describe('useIdleLogout', () => {
 
   it('calls onIdle once the idle timeout passes without activity, not before', () => {
     const { onIdle } = setup()
-    vi.advanceTimersByTime(IDLE_TIMEOUT_MS - 15 * 1000)
+    vi.advanceTimersByTime(IDLE_TIMEOUT_MS - MINUTE)
     expect(onIdle).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(15 * 1000)
+    vi.advanceTimersByTime(MINUTE)
     expect(onIdle).toHaveBeenCalledTimes(1)
   })
 
@@ -148,35 +148,29 @@ describe('useIdleLogout', () => {
   })
 
   it('stops checking and listening after unmount', () => {
-    const removeSpy = vi.spyOn(window, 'removeEventListener')
     const { onIdle, keepAlive, unmount } = setup()
     activity()
     unmount()
 
-    const removed = removeSpy.mock.calls.map(([type]) => type)
-    expect(removed).toEqual(
-      expect.arrayContaining(['mousemove', 'mousedown', 'keydown', 'scroll', 'wheel', 'touchstart']),
-    )
-    removeSpy.mockRestore()
-
+    window.localStorage.clear()
     vi.advanceTimersByTime(IDLE_TIMEOUT_MS * 2)
+    for (const type of ['mousemove', 'mousedown', 'keydown', 'scroll', 'wheel', 'touchstart']) activity(type)
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull()
     expect(onIdle).not.toHaveBeenCalled()
     expect(keepAlive).not.toHaveBeenCalled()
-    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('stops when it becomes inactive and restarts the countdown when active again', () => {
     const { onIdle, rerender } = setup()
     vi.advanceTimersByTime(20 * MINUTE)
     rerender({ on: false })
-    expect(vi.getTimerCount()).toBe(0)
     vi.advanceTimersByTime(IDLE_TIMEOUT_MS)
     expect(onIdle).not.toHaveBeenCalled()
 
     rerender({ on: true })
-    vi.advanceTimersByTime(IDLE_TIMEOUT_MS - 15 * 1000)
+    vi.advanceTimersByTime(IDLE_TIMEOUT_MS - MINUTE)
     expect(onIdle).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(15 * 1000)
+    vi.advanceTimersByTime(MINUTE)
     expect(onIdle).toHaveBeenCalledTimes(1)
   })
 })

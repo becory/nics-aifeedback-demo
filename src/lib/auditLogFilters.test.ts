@@ -7,14 +7,19 @@ import {
   resolveAuditTimeRange,
   type AuditLogFilters,
 } from './auditLogFilters'
-import { toDatetimeLocal } from './feedbackStats'
 
 const NOW = new Date('2026-10-20T12:34:56Z')
 const HOUR = 3600_000
 
+/** A date as a datetime-local value (local time, to the minute), built independently of the code under test. */
+function local(d: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 /** Expected `from` for a relative preset: `hours` before NOW, truncated to the minute (local time). */
 function relativeFromIso(hours: number): string {
-  return new Date(toDatetimeLocal(new Date(NOW.getTime() - hours * HOUR).toISOString())).toISOString()
+  return new Date(local(new Date(NOW.getTime() - hours * HOUR))).toISOString()
 }
 
 function filters(overrides: Partial<AuditLogFilters>): AuditLogFilters {
@@ -24,10 +29,10 @@ function filters(overrides: Partial<AuditLogFilters>): AuditLogFilters {
 describe('resolveAuditTimeRange', () => {
   it('resolves a relative preset to a start time and no end', () => {
     expect(resolveAuditTimeRange({ preset: '24h', customFrom: '', customTo: '' }, NOW)).toEqual({
-      from: toDatetimeLocal(new Date(NOW.getTime() - 24 * HOUR).toISOString()),
+      from: local(new Date(NOW.getTime() - 24 * HOUR)),
     })
     expect(resolveAuditTimeRange({ preset: '30d', customFrom: '', customTo: '' }, NOW)).toEqual({
-      from: toDatetimeLocal(new Date(NOW.getTime() - 30 * 24 * HOUR).toISOString()),
+      from: local(new Date(NOW.getTime() - 30 * 24 * HOUR)),
     })
   })
 

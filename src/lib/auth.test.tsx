@@ -17,7 +17,7 @@ vi.mock('../api/auth', () => ({
 }))
 
 vi.mock('../api/api', () => ({
-  refreshNow: vi.fn(),
+  refreshNow: vi.fn(() => Promise.resolve()),
   setAccessToken: vi.fn(),
   setOnUnauthorized: vi.fn(),
   setRefreshHandler: vi.fn(),
@@ -56,7 +56,9 @@ async function loginPending(setup: boolean) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  // Reset implementations too, so no test silently depends on a mock set up by an earlier one.
+  vi.resetAllMocks()
+  mockedApi.refreshNow.mockResolvedValue()
   vi.spyOn(console, 'error').mockImplementation(() => {})
   mocked.postRefresh.mockRejectedValue(httpError(401))
   mocked.postLogout.mockResolvedValue(ok(null))
@@ -68,7 +70,6 @@ afterEach(() => {
 
 describe('useAuth', () => {
   it('throws when used outside AuthProvider', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(() => renderHook(() => useAuth())).toThrow('useAuth must be used within AuthProvider')
   })
 })
@@ -300,9 +301,29 @@ describe('idle logout', () => {
 describe('unauthorized handler', () => {
   const unauthorizedHandler = () => mockedApi.setOnUnauthorized.mock.calls.findLast(([fn]) => fn !== null)![0]!
 
-  it('registers the session refresh as the API refresh handler', async () => {
-    await renderAuth()
-    expect(mockedApi.setRefreshHandler).toHaveBeenCalledWith(expect.any(Function))
+  const refreshHandler = () => mockedApi.setRefreshHandler.mock.calls.findLast(([fn]) => fn !== null)![0]!
+
+  it('registers a refresh handler that renews the token and reloads the user', async () => {
+    const { result } = await renderAuth()
+    mocked.postRefresh.mockResolvedValue(ok({ accessToken: 'tok', expiresIn: 900 }))
+    mocked.getUserInfo.mockResolvedValue(ok(user))
+
+    await act(() => refreshHandler()())
+
+    expect(mockedApi.setAccessToken).toHaveBeenCalledWith('tok', 900)
+    expect(result.current.session).toEqual({ requiresTwoFactorSetup: false, requiresTwoFactor: false, accessToken: 'tok' })
+    expect(result.current.user).toEqual(user)
+  })
+
+  it('keeps the rest of an existing session when the refresh handler renews the token', async () => {
+    const { result } = await signIn()
+    const before = result.current.session!
+    mocked.postRefresh.mockResolvedValue(ok({ accessToken: 'tok-2', expiresIn: 900 }))
+
+    await act(() => refreshHandler()())
+
+    expect(result.current.session).toEqual({ ...before, accessToken: 'tok-2' })
+    expect(result.current.user).toEqual(user)
   })
 
   it('signs out with the timed-out notice when a signed-in session gets a 401', async () => {
