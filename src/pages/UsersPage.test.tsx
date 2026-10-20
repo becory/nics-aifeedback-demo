@@ -309,6 +309,14 @@ describe('UsersPage edit', () => {
     await waitFor(() => expect(screen.queryByRole('heading', { name: '編輯使用者' })).not.toBeInTheDocument())
   })
 
+  it('does not log the fetched user to the console', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const user = await renderPage()
+    await openEdit(user, 'Alice')
+    expect(log).not.toHaveBeenCalled()
+    log.mockRestore()
+  })
+
   it('refuses to revoke admin from the last system admin', async () => {
     const user = await renderPage()
     await openEdit(user, 'Alice')
@@ -389,6 +397,15 @@ describe('UsersPage delete', () => {
     await waitFor(() => expect(deleteUser).toHaveBeenCalledWith('u1'))
   })
 
+  it('sends one delete when clicked again while the first is in flight', async () => {
+    vi.mocked(deleteUser).mockImplementation(() => new Promise(() => {}) as never)
+    const user = await renderPage()
+    const button = within(rowOf('Bob')).getByRole('button', { name: '刪除' })
+    await user.click(button)
+    await user.click(button)
+    expect(deleteUser).toHaveBeenCalledTimes(1)
+  })
+
   it('deletes a regular user after confirmation and reloads the list', async () => {
     const user = await renderPage()
     vi.mocked(getUsers).mockClear()
@@ -418,6 +435,15 @@ describe('UsersPage reset 2FA', () => {
     await user.click(within(rowOf('Alice')).getByRole('button', { name: '重設二階段驗證' }))
     expect(confirmSpy).toHaveBeenCalledWith('確定要重設「Alice」的二階段驗證？該使用者下次登入時需重新綁定。')
     await waitFor(() => expect(resetUser2FA).toHaveBeenCalledWith('u1'))
+  })
+
+  it('sends one reset when clicked again while the first is in flight', async () => {
+    vi.mocked(resetUser2FA).mockImplementation(() => new Promise(() => {}) as never)
+    const user = await renderPage()
+    const button = within(rowOf('Alice')).getByRole('button', { name: '重設二階段驗證' })
+    await user.click(button)
+    await user.click(button)
+    expect(resetUser2FA).toHaveBeenCalledTimes(1)
   })
 
   it('does nothing when cancelled', async () => {
@@ -472,6 +498,24 @@ describe('UsersPage change password', () => {
     await user.type(screen.getByLabelText('確認新密碼'), 'Secret#Pass123')
     await user.click(screen.getByRole('button', { name: '更新密碼' }))
     expect(changeUserPassword).toHaveBeenCalledWith('u2', 'Secret#Pass123')
+    await waitFor(() => expect(screen.queryByRole('heading', { name: /修改密碼 —/ })).not.toBeInTheDocument())
+  })
+
+  it('sends one request when 更新密碼 is clicked again while saving', async () => {
+    let finish: (v: unknown) => void = () => {}
+    vi.mocked(changeUserPassword).mockImplementation(() => new Promise((r) => (finish = r)) as never)
+    const user = await renderPage()
+    await openPassword(user)
+    await user.type(screen.getByLabelText('新密碼'), 'Secret#Pass123')
+    await user.type(screen.getByLabelText('確認新密碼'), 'Secret#Pass123')
+    await user.click(screen.getByRole('button', { name: '更新密碼' }))
+
+    const saving = screen.getByRole('button', { name: '更新中…' })
+    expect(saving).toBeDisabled()
+    await user.click(saving)
+    expect(changeUserPassword).toHaveBeenCalledTimes(1)
+
+    finish(res({}))
     await waitFor(() => expect(screen.queryByRole('heading', { name: /修改密碼 —/ })).not.toBeInTheDocument())
   })
 

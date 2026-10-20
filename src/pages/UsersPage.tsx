@@ -86,7 +86,6 @@ export function UsersPage() {
   const openEdit = async (user: User) => {
     try {
       const getUser = await getUserById(user.id);
-      console.log("Fetched user:", getUser.data);
       if (!getUser.data) {
         alert("使用者不存在");
         return;
@@ -166,6 +165,10 @@ export function UsersPage() {
     void refresh();
     setModalOpen(false);
   };
+
+  const [changingPassword, guardChangePassword] = useSubmitGuard();
+  // Delete and reset 2FA: one row action at a time, so a double-click sends one request.
+  const [, guardRowAction] = useSubmitGuard();
 
   const handleChangePassword = async () => {
     if (!passwordTarget) return;
@@ -324,7 +327,7 @@ export function UsersPage() {
                       {user.twoFactorEnabled && (
                         <button
                           type="button"
-                          onClick={() => handleReset2FA(user)}
+                          onClick={() => guardRowAction(() => handleReset2FA(user))}
                           className="mr-2 text-amber-600 hover:text-amber-800"
                         >
                           重設二階段驗證
@@ -332,7 +335,7 @@ export function UsersPage() {
                       )}
                       <button
                         type="button"
-                        onClick={() => handleDelete(user)}
+                        onClick={() => guardRowAction(() => handleDelete(user))}
                         className="text-red-600 hover:text-red-800"
                       >
                         刪除
@@ -420,7 +423,7 @@ export function UsersPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    void handleReset2FA(editing);
+                    void guardRowAction(() => handleReset2FA(editing));
                     setModalOpen(false);
                   }}
                   className="mt-2 ml-4 text-sm text-amber-600 hover:text-amber-800"
@@ -473,7 +476,9 @@ export function UsersPage() {
             >
               取消
             </Button>
-            <Button onClick={handleChangePassword}>更新密碼</Button>
+            <Button onClick={() => guardChangePassword(handleChangePassword)} disabled={changingPassword}>
+              {changingPassword ? "更新中…" : "更新密碼"}
+            </Button>
           </div>
         </div>
       </Modal>

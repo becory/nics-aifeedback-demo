@@ -225,6 +225,15 @@ describe('ServicesPage organizations', () => {
     await waitFor(() => expect(getOrganizations).toHaveBeenCalled())
   })
 
+  it('sends one delete when clicked again while the first is in flight', async () => {
+    vi.mocked(deleteOrganization).mockImplementation(() => new Promise(() => {}) as never)
+    const user = await renderPage()
+    const button = within(orgRow('數位部')).getByRole('button', { name: '刪除' })
+    await user.click(button)
+    await user.click(button)
+    expect(deleteOrganization).toHaveBeenCalledTimes(1)
+  })
+
   it('does not delete an organization when the confirmation is cancelled', async () => {
     confirmSpy.mockReturnValue(false)
     const user = await renderPage()
