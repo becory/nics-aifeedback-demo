@@ -25,6 +25,17 @@ describe('Modal', () => {
     expect(screen.getByText('內容')).toBeInTheDocument()
   })
 
+  it('is a modal dialog named by its title', () => {
+    render(
+      <Modal open title="標題" onClose={vi.fn()}>
+        內容
+      </Modal>,
+    )
+    const dialog = screen.getByRole('dialog', { name: '標題' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(dialog).toHaveTextContent('內容')
+  })
+
   it('closes on Esc', async () => {
     const onClose = vi.fn()
     render(
@@ -161,6 +172,21 @@ describe('Modal', () => {
       }
       render(<Inside />)
       await userEvent.click(screen.getByRole('button', { name: '開啟內層' }))
+      await userEvent.keyboard('{Escape}')
+      expect(onInnerClose).toHaveBeenCalledTimes(1)
+      expect(onOuterClose).not.toHaveBeenCalled()
+    })
+
+    it('Esc closes the inner modal when both open in the same render', async () => {
+      const onOuterClose = vi.fn()
+      const onInnerClose = vi.fn()
+      render(
+        <Modal open title="外層" onClose={onOuterClose}>
+          <Modal open title="內層" onClose={onInnerClose}>
+            內層內容
+          </Modal>
+        </Modal>,
+      )
       await userEvent.keyboard('{Escape}')
       expect(onInnerClose).toHaveBeenCalledTimes(1)
       expect(onOuterClose).not.toHaveBeenCalled()
