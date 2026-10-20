@@ -199,8 +199,8 @@ export function FilterBar<P extends string, F extends string>({
               // editing (or leaving for another preset) never queries a half-set range.
               <span key={p.key} className="relative inline-flex gap-2">
                 <div
-                  // Not a control itself: only catches Enter bubbling up from the two text fields
-                  // (each has already committed its typed value by then).
+                  ref={customRef}
+                  // Not a control itself: only catches focus leaving the start/end pair.
                   role="presentation"
                   className="inline-flex h-8 items-stretch overflow-hidden rounded border border-[#0055dc] bg-white"
                   onKeyDown={(e) => {
