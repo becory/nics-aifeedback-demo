@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useSubmitGuard } from "../lib/useSubmitGuard";
-import type { FeedbackRating, ScoreConfig } from "../types";
+import type { ScoreConfig } from "../types";
 import { getScoreConfigs, updateScoreConfig } from "../api";
 import { getApiErrorMessage } from "../api/api";
-import { RATING_KEY_LABELS, RATING_KEYS } from "../lib/ratingScores";
+import { RATING_KEYS } from "../lib/ratingScores";
 import { Modal } from "../components/Modal";
 import { Button, Input, LoadingState, PageHeader } from "../components/ui";
 
@@ -14,11 +14,9 @@ interface ScoreForm {
 }
 
 export function ScoresPage() {
-  const [configs, setConfigs] = useState<
-    Partial<Record<FeedbackRating, ScoreConfig>>
-  >({});
+  const [configs, setConfigs] = useState<ScoreConfig[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingKey, setEditingKey] = useState<FeedbackRating | null>(null);
+  const [editing, setEditing] = useState<ScoreConfig | null>(null);
   const [form, setForm] = useState<ScoreForm>({
     name: "",
     description: "",
@@ -32,14 +30,7 @@ export function ScoresPage() {
     setLoading(true);
     try {
       const res = await getScoreConfigs();
-      const sorted = [...res.data.data].sort(
-        (a, b) => b.scoreValue - a.scoreValue,
-      );
-      const next: Partial<Record<FeedbackRating, ScoreConfig>> = {};
-      RATING_KEYS.forEach((key, index) => {
-        if (sorted[index]) next[key] = sorted[index];
-      });
-      setConfigs(next);
+      setConfigs(res.data.data);
       setLoadError("");
     } catch (error) {
       const detail = getApiErrorMessage(error);
@@ -53,10 +44,8 @@ export function ScoresPage() {
     void refresh();
   }, []);
 
-  const openEdit = (key: FeedbackRating) => {
-    const current = configs[key];
-    if (!current) return;
-    setEditingKey(key);
+  const openEdit = (current: ScoreConfig) => {
+    setEditing(current);
     setForm({
       name: current.name,
       description: current.description,
@@ -68,8 +57,7 @@ export function ScoresPage() {
 
   const [saving, guardSave] = useSubmitGuard();
   const handleSave = async () => {
-    if (!editingKey) return;
-    const current = configs[editingKey];
+    const current = editing;
     if (!current) return;
 
     if (!form.name.trim()) {
@@ -144,28 +132,18 @@ export function ScoresPage() {
                 </tr>
               </thead>
               <tbody>
+                {/* Fixed rows good → normal → bad, each filled by the config whose id is that code
+                    (never by score order, which changes when the scores are edited). */}
                 {RATING_KEYS.map((key) => {
-                  const cfg = configs[key];
+                  const cfg = configs.find((c) => c.id === key);
                   return (
                     <tr key={key}>
-                      <td className="px-4 py-3 font-mono text-slate-600">
-                        {RATING_KEY_LABELS[key]}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
-                        {cfg?.name ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {cfg?.description ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 tabular-nums text-slate-900">
-                        {cfg?.scoreValue ?? "—"}
-                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-600">{key}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{cfg?.name ?? "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{cfg?.description ?? "—"}</td>
+                      <td className="px-4 py-3 tabular-nums text-slate-900">{cfg?.scoreValue ?? "—"}</td>
                       <td className="px-4 py-3">
-                        <Button
-                          variant="secondary"
-                          onClick={() => openEdit(key)}
-                          disabled={!cfg}
-                        >
+                        <Button variant="secondary" onClick={() => cfg && openEdit(cfg)} disabled={!cfg}>
                           編輯
                         </Button>
                       </td>
@@ -180,7 +158,7 @@ export function ScoresPage() {
 
       <Modal
         open={modalOpen}
-        title={`編輯評價：${editingKey ? RATING_KEY_LABELS[editingKey] : ""}`}
+        title={`編輯評價：${editing?.id ?? ""}`}
         onClose={() => setModalOpen(false)}
       >
         <div className="space-y-4">

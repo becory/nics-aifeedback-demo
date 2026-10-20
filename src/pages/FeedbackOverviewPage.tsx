@@ -244,12 +244,11 @@ export function FeedbackOverviewPage() {
   };
 
   const ratingLabels = useMemo<Record<FeedbackRating, string>>(() => {
-    // Score configs are good/normal/bad by descending score (same pairing as before the redesign).
-    const sorted = [...scoreConfigs].sort((a, b) => b.scoreValue - a.scoreValue);
+    // A score config's id is its rating code, so each label comes from its own config.
     const labels = { good: "good", normal: "normal", bad: "bad" } as Record<FeedbackRating, string>;
-    RATING_KEYS.forEach((key, i) => {
-      if (sorted[i]) labels[key] = sorted[i].name;
-    });
+    for (const config of scoreConfigs) {
+      if (config.id in labels) labels[config.id as FeedbackRating] = config.name;
+    }
     return labels;
   }, [scoreConfigs]);
 
